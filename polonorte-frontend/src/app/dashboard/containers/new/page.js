@@ -23,36 +23,43 @@ export default function NewContainerPage() {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    // Ahora todos los roles pueden acceder a esta página
     if (user) {
-      // Para proveedores, asignar automáticamente su ID como supplier_id
-      if (user.role === 'Proveedor') {
-        setFormData(prev => ({
-          ...prev,
-          supplier_id: user.id.toString()
-        }));
-      }
-      
       const fetchSuppliers = async () => {
-        // Solo Admin y Operador necesitan cargar la lista de proveedores
-        if (['Admin', 'Operador'].includes(user.role)) {
-          try {
-            setLoading(true);
+        try {
+          setLoading(true);
+          
+          // Si es proveedor, usar su proveedor asignado automáticamente
+          if (user.role === 'Proveedor') {
+            if (!user.supplier_id) {
+              alert('Tu usuario no tiene un proveedor asignado. Contacta al administrador.');
+              router.push('/dashboard/containers');
+              return;
+            }
+            
+            // Obtener datos del proveedor asignado
+            const response = await axios.get(`/suppliers/${user.supplier_id}`);
+            setSuppliers([response.data]);
+            setFormData(prev => ({
+              ...prev,
+              supplier_id: user.supplier_id.toString()
+            }));
+          } else {
+            // Admin y Operador pueden seleccionar cualquier proveedor
             const response = await axios.get('/container-suppliers');
             setSuppliers(response.data);
-            setLoading(false);
-          } catch (error) {
-            console.error('Error fetching suppliers:', error);
-            setLoading(false);
           }
-        } else {
+          
           setLoading(false);
+        } catch (error) {
+          console.error('Error fetching suppliers:', error);
+          setLoading(false);
+          alert('Error al cargar proveedores. Contacta al administrador.');
         }
       };
 
       fetchSuppliers();
     }
-  }, [user]);
+  }, [user, router]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -74,11 +81,8 @@ export default function NewContainerPage() {
   const validateForm = () => {
     const newErrors = {};
     
-    // Para proveedores, no validar supplier_id porque se asigna automáticamente
-    if (!user || user.role !== 'Proveedor') {
-      if (!formData.supplier_id) {
-        newErrors.supplier_id = 'El proveedor es requerido';
-      }
+    if (!formData.supplier_id) {
+      newErrors.supplier_id = 'El proveedor es requerido';
     }
     
     if (!formData.origin_country) {
@@ -89,169 +93,192 @@ export default function NewContainerPage() {
       newErrors.status = 'El estado es requerido';
     }
     
-    // Validar que la fecha esperada sea posterior a la fecha de salida
     if (formData.departure_date && formData.expected_arrival_date) {
-      const departureDate = new Date(formData.departure_date);
-      const expectedDate = new Date(formData.expected_arrival_date);
-      
-      if (expectedDate < departureDate) {
-        newErrors.expected_arrival_date = 'La fecha esperada debe ser posterior a la fecha de salida';
+      if (new Date(formData.departure_date) > new Date(formData.expected_arrival_date)) {
+        newErrors.expected_arrival_date = 'La fecha de llegada debe ser posterior a la fecha de salida';
       }
     }
     
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
     
     setSubmitting(true);
     
     try {
-      const response = await axios.post('/containers', formData);
+      const response = await axios.post('/containers', {
+        supplier_id: parseInt(formData.supplier_id),
+        origin_country: formData.origin_country,
+        content_description: formData.content_description || null,
+        departure_date: formData.departure_date || null,
+        expected_arrival_date: formData.expected_arrival_date || null,
+        status: formData.status,
+        location: formData.location || null,
+      });
       
-      // Redirigir a la lista de furgones después de crear
+      alert(`Contenedor creado exitosamente. Código de seguimiento: ${response.data.tracking_code}`);
       router.push('/dashboard/containers');
+      
     } catch (error) {
       console.error('Error creating container:', error);
       
-      // Manejar errores de validación del servidor
-      if (error.response?.status === 422) {
+      if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
       } else {
-        alert('Error al crear el furgón. Por favor, intenta de nuevo.');
+        alert('Error al crear el contenedor: ' + (error.response?.data?.message || 'Error desconocido'));
       }
-      
+    } finally {
       setSubmitting(false);
     }
   };
 
   if (loading) {
-    return <div className="text-center p-6">Cargando...</div>;
+    return (
+      <div className="text-center p-6">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-2">Cargando información...</p>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Registrar Nuevo Furgón</h1>
-        <button
-          onClick={() => router.push('/dashboard/containers')}
-          className="text-gray-600 hover:text-gray-800"
-        >
-          Volver
-        </button>
+    <div className="max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Nuevo Contenedor</h1>
+        <p className="text-gray-600 mt-1">Registra un nuevo contenedor en el sistema</p>
       </div>
-      
+
       <div className="bg-white shadow rounded-lg p-6">
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Proveedor - mostrar solo a Admin y Operador */}
-            {user && ['Admin', 'Operador'].includes(user.role) ? (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier_id">
-                  Proveedor
-                </label>
-                <select
-                  id="supplier_id"
-                  name="supplier_id"
-                  value={formData.supplier_id}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-md ${
-                    errors.supplier_id ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Seleccionar proveedor</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name} ({supplier.email})
-                    </option>
-                  ))}
-                </select>
-                {errors.supplier_id && (
-                  <p className="mt-1 text-sm text-red-500">{errors.supplier_id}</p>
-                )}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Información del proveedor */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Proveedor *
+            </label>
+            {user?.role === 'Proveedor' ? (
+              <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2">
+                <p className="text-sm text-gray-900">
+                  {suppliers[0]?.company_name || 'Cargando...'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Proveedor asignado a tu usuario
+                </p>
               </div>
-            ) : null}
-            
-            {/* País de Origen */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="origin_country">
-                País de Origen
-              </label>
-              <input
-                type="text"
-                id="origin_country"
-                name="origin_country"
-                value={formData.origin_country}
+            ) : (
+              <select
+                name="supplier_id"
+                value={formData.supplier_id}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.origin_country ? 'border-red-500' : 'border-gray-300'
+                className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.supplier_id ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Ej: China"
-              />
-              {errors.origin_country && (
-                <p className="mt-1 text-sm text-red-500">{errors.origin_country}</p>
-              )}
-            </div>
-            
-            {/* Fecha de Salida */}
+                required
+              >
+                <option value="">Seleccionar proveedor</option>
+                {suppliers.map(supplier => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.company_name}
+                    {supplier.country && ` (${supplier.country})`}
+                  </option>
+                ))}
+              </select>
+            )}
+            {errors.supplier_id && (
+              <p className="text-red-500 text-xs mt-1">{errors.supplier_id}</p>
+            )}
+          </div>
+
+          {/* País de origen */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              País de Origen *
+            </label>
+            <input
+              type="text"
+              name="origin_country"
+              value={formData.origin_country}
+              onChange={handleChange}
+              className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.origin_country ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Ej: China, Estados Unidos"
+              required
+            />
+            {errors.origin_country && (
+              <p className="text-red-500 text-xs mt-1">{errors.origin_country}</p>
+            )}
+          </div>
+
+          {/* Descripción del contenido */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Descripción del Contenido
+            </label>
+            <textarea
+              name="content_description"
+              value={formData.content_description}
+              onChange={handleChange}
+              rows="3"
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Describe el contenido del contenedor..."
+            />
+          </div>
+
+          {/* Fechas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="departure_date">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Fecha de Salida
               </label>
               <input
                 type="date"
-                id="departure_date"
                 name="departure_date"
                 value={formData.departure_date}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.departure_date ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              {errors.departure_date && (
-                <p className="mt-1 text-sm text-red-500">{errors.departure_date}</p>
-              )}
             </div>
-            
-            {/* Fecha Esperada de Llegada */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="expected_arrival_date">
-                Fecha Esperada de Llegada
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fecha Estimada de Llegada
               </label>
               <input
                 type="date"
-                id="expected_arrival_date"
                 name="expected_arrival_date"
                 value={formData.expected_arrival_date}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md ${
+                className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.expected_arrival_date ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
               {errors.expected_arrival_date && (
-                <p className="mt-1 text-sm text-red-500">{errors.expected_arrival_date}</p>
+                <p className="text-red-500 text-xs mt-1">{errors.expected_arrival_date}</p>
               )}
             </div>
-            
-            {/* Estado */}
+          </div>
+
+          {/* Estado y ubicación */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="status">
-                Estado
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Estado Inicial *
               </label>
               <select
-                id="status"
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md ${
+                className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.status ? 'border-red-500' : 'border-gray-300'
                 }`}
+                required
               >
                 <option value="Registrado">Registrado</option>
                 <option value="En preparación">En preparación</option>
@@ -259,57 +286,47 @@ export default function NewContainerPage() {
                 <option value="Recibido">Recibido</option>
               </select>
               {errors.status && (
-                <p className="mt-1 text-sm text-red-500">{errors.status}</p>
+                <p className="text-red-500 text-xs mt-1">{errors.status}</p>
               )}
             </div>
-            
-            {/* Ubicación Actual */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="location">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ubicación Actual
               </label>
               <input
                 type="text"
-                id="location"
                 name="location"
                 value={formData.location}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Ej: Puerto de Shanghai"
               />
             </div>
           </div>
-          
-          {/* Descripción del Contenido */}
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="content_description">
-              Descripción del Contenido
-            </label>
-            <textarea
-              id="content_description"
-              name="content_description"
-              value={formData.content_description}
-              onChange={handleChange}
-              rows="4"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              placeholder="Describa el contenido del furgón..."
-            ></textarea>
-          </div>
-          
-          <div className="mt-6 flex justify-end">
+
+          {/* Botones */}
+          <div className="flex justify-end space-x-4 pt-6">
             <button
               type="button"
               onClick={() => router.push('/dashboard/containers')}
-              className="mr-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+              disabled={submitting}
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Guardando...' : 'Guardar Furgón'}
+              {submitting ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Creando...
+                </div>
+              ) : (
+                'Crear Contenedor'
+              )}
             </button>
           </div>
         </form>

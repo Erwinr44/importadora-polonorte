@@ -16,6 +16,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role_id',
+        'supplier_id',
         'phone',
         'active',
     ];
@@ -60,4 +61,16 @@ class User extends Authenticatable
     {
         return $this->hasMany(OrderTracking::class, 'updated_by');
     }
+
+    // Relación con proveedor
+public function supplier()
+{
+    return $this->belongsTo(Supplier::class);
+}
+
+// Relación con contenedores creados
+public function createdContainers()
+{
+    return $this->hasMany(Container::class, 'created_by');
+}
 }

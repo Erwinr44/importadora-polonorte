@@ -147,11 +147,11 @@ class OrderController extends Controller
     }
 
     /**
-     * Update the order status.
+     * Update order status and handle inventory restoration if cancelled
      */
     public function updateStatus(Request $request, string $id)
     {
-        $order = Order::find($id);
+        $order = Order::with('products')->find($id);
         
         if (!$order) {
             return response()->json([
@@ -160,8 +160,8 @@ class OrderController extends Controller
         }
         
         $validator = Validator::make($request->all(), [
-            'status' => 'required|string|max:50',
-            'notes' => 'nullable|string',
+            'status' => 'required|string|in:Pendiente,En preparación,En tránsito,Entregado,Cancelado',
+            'notes' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -170,24 +170,97 @@ class OrderController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-        
-        // Actualizar el estado de la orden
-        $order->status = $request->status;
-        $order->save();
-        
-        // Crear nuevo registro en el historial de seguimiento
-        $tracking = OrderTracking::create([
-            'order_id' => $order->id,
-            'status' => $request->status,
-            'notes' => $request->notes,
-            'updated_by' => $request->user()->id,
-        ]);
 
-        return response()->json([
-            'message' => 'Estado del pedido actualizado exitosamente',
-            'order' => $order,
-            'tracking' => $tracking
+        $oldStatus = $order->status;
+        $newStatus = $request->status;
+
+        // Iniciar transacción para asegurar consistencia
+        DB::beginTransaction();
+        
+        try {
+            // Si el pedido se cancela, restaurar inventario
+            if ($newStatus === 'Cancelado' && $oldStatus !== 'Cancelado') {
+                foreach ($order->products as $product) {
+                    $inventory = Inventory::where('product_id', $product->id)
+                        ->where('warehouse_id', $product->pivot->warehouse_id)
+                        ->first();
+                    
+                    if ($inventory) {
+                        // Restaurar la cantidad que se había reducido
+                        $inventory->quantity += $product->pivot->quantity;
+                        $inventory->save();
+                    }
+                }
+            }
+            
+            // Si se reactiva un pedido cancelado, verificar stock y reducir de nuevo
+            if ($oldStatus === 'Cancelado' && $newStatus !== 'Cancelado') {
+                // Verificar que hay suficiente stock para reactivar
+                foreach ($order->products as $product) {
+                    $inventory = Inventory::where('product_id', $product->id)
+                        ->where('warehouse_id', $product->pivot->warehouse_id)
+                        ->first();
+                    
+                    if (!$inventory || $inventory->quantity < $product->pivot->quantity) {
+                        throw new \Exception("No hay suficiente stock para reactivar este pedido. Producto: {$product->name}");
+                    }
+                }
+                
+                // Si hay suficiente stock, reducir de nuevo
+                foreach ($order->products as $product) {
+                    $inventory = Inventory::where('product_id', $product->id)
+                        ->where('warehouse_id', $product->pivot->warehouse_id)
+                        ->first();
+                    
+                    $inventory->quantity -= $product->pivot->quantity;
+                    $inventory->save();
+                }
+            }
+            
+            // Actualizar estado del pedido
+            $order->status = $newStatus;
+            $order->save();
+            
+            // Crear registro de seguimiento
+            OrderTracking::create([
+                'order_id' => $order->id,
+                'status' => $newStatus,
+                'notes' => $request->notes ?? "Estado actualizado a: {$newStatus}",
+                'updated_by' => $request->user()->id,
+            ]);
+            
+            DB::commit();
+            
+            return response()->json([
+                'message' => 'Estado del pedido actualizado exitosamente',
+                'order' => $order->load(['trackingHistory', 'products'])
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'message' => 'Error al actualizar el estado del pedido',
+                'error' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Cancel an order and restore inventory
+     */
+    public function cancel(Request $request, string $id)
+    {
+        // Crear un request con status = Cancelado para usar el método updateStatus
+        $cancelRequest = new Request([
+            'status' => 'Cancelado',
+            'notes' => $request->input('notes', 'Pedido cancelado desde el panel de administración')
         ]);
+        
+        // Copiar el usuario del request original
+        $cancelRequest->setUserResolver($request->getUserResolver());
+        
+        return $this->updateStatus($cancelRequest, $id);
     }
 
     /**

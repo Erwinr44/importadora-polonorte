@@ -20,6 +20,90 @@ class InventoryController extends Controller
         return response()->json($inventory);
     }
 
+    public function getLowStockProducts()
+    {
+        // Subconsulta para obtener el stock total por producto
+        $productsWithTotalStock = DB::table('products')
+            ->leftJoin('inventory', 'products.id', '=', 'inventory.product_id')
+            ->select(
+                'products.id',
+                'products.name',
+                'products.code',
+                'products.min_stock',
+                'products.category',
+                DB::raw('COALESCE(SUM(inventory.quantity), 0) as total_stock')
+            )
+            ->where('products.active', true)
+            ->groupBy('products.id', 'products.name', 'products.code', 'products.min_stock', 'products.category');
+        
+        // Filtrar productos donde el stock total es menor al mínimo
+        $lowStockProducts = DB::table(DB::raw("({$productsWithTotalStock->toSql()}) as products_stock"))
+            ->mergeBindings($productsWithTotalStock)
+            ->whereRaw('products_stock.total_stock < products_stock.min_stock')
+            ->orderBy('products_stock.total_stock', 'asc')
+            ->get();
+
+        // Si no hay productos con stock bajo, retornar array vacío
+        if ($lowStockProducts->isEmpty()) {
+            return response()->json([
+                'message' => 'No hay productos con stock bajo actualmente',
+                'products' => []
+            ]);
+        }
+
+        // Obtener detalles de inventario por bodega para cada producto con stock bajo
+        $productsWithDetails = [];
+        
+        foreach ($lowStockProducts as $product) {
+            $inventoryDetails = Inventory::where('product_id', $product->id)
+                ->with('warehouse')
+                ->get()
+                ->map(function ($inventory) {
+                    return [
+                        'warehouse_name' => $inventory->warehouse->name,
+                        'warehouse_location' => $inventory->warehouse->location,
+                        'quantity' => $inventory->quantity
+                    ];
+                });
+
+            $productsWithDetails[] = [
+                'id' => $product->id,
+                'name' => $product->name,
+                'code' => $product->code,
+                'category' => $product->category,
+                'min_stock' => $product->min_stock,
+                'total_stock' => $product->total_stock,
+                'deficit' => $product->min_stock - $product->total_stock, // Cuánto falta para llegar al mínimo
+                'inventory_by_warehouse' => $inventoryDetails,
+                'alert_level' => $this->getAlertLevel($product->total_stock, $product->min_stock)
+            ];
+        }
+
+        return response()->json([
+            'message' => 'Productos con stock bajo encontrados',
+            'count' => count($productsWithDetails),
+            'products' => $productsWithDetails
+        ]);
+    }
+
+    /**
+     * 🔧 MÉTODO AUXILIAR: Determinar nivel de alerta basado en stock
+     */
+    private function getAlertLevel($currentStock, $minStock)
+    {
+        $percentage = ($currentStock / $minStock) * 100;
+        
+        if ($currentStock == 0) {
+            return 'critical'; // Sin stock
+        } elseif ($percentage <= 25) {
+            return 'high'; // Stock muy bajo (≤25% del mínimo)
+        } elseif ($percentage <= 50) {
+            return 'medium'; // Stock bajo (≤50% del mínimo)
+        } else {
+            return 'low'; // Stock ligeramente bajo
+        }
+    }
+
     public function getProductInventory(string $productId)
     {
         $product = Product::find($productId);
@@ -54,7 +138,6 @@ class InventoryController extends Controller
         return response()->json($inventory);
     }
 
- 
     public function updateQuantity(Request $request)
     {
         $validator = Validator::make($request->all(), [

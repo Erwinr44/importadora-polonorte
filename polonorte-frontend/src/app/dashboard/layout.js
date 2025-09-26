@@ -5,6 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
 
+// 📍 UBICACIÓN: polonorte-frontend/src/app/dashboard/layout.js
+
 export default function DashboardLayout({ children }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
@@ -29,6 +31,7 @@ export default function DashboardLayout({ children }) {
     if (pathname === '/dashboard') return 'Dashboard';
     if (pathname === '/dashboard/products') return 'Productos';
     if (pathname === '/dashboard/inventory') return 'Inventario';
+    if (pathname === '/dashboard/warehouses') return 'Bodegas'; // 🆕 NUEVO
     if (pathname === '/dashboard/containers') return 'Furgones';
     if (pathname.startsWith('/dashboard/containers/')) {
       if (pathname.includes('/new')) return 'Nuevo Furgón';
@@ -74,6 +77,13 @@ export default function DashboardLayout({ children }) {
               >
                 Inventario
               </Link>
+              {/* 🆕 NUEVA OPCIÓN: Bodegas */}
+              <Link 
+                href="/dashboard/warehouses" 
+                className={`block py-2 px-6 ${pathname === '/dashboard/warehouses' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
+              >
+                Bodegas
+              </Link>
             </>
           )}
           
@@ -101,6 +111,16 @@ export default function DashboardLayout({ children }) {
               className={`block py-2 px-6 ${pathname === '/dashboard/users' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
             >
               Usuarios
+            </Link>
+          )}
+
+          {/* Mostrar gestión de proveedores solo para Admin */}
+          {user && user.role === 'Admin' && (
+            <Link 
+              href="/dashboard/suppliers" 
+              className={`block py-2 px-6 ${pathname === '/dashboard/suppliers' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
+            >
+              Proveedores
             </Link>
           )}
         </nav>

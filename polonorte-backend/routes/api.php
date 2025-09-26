@@ -8,7 +8,7 @@ use App\Http\Controllers\API\WarehouseController;
 use App\Http\Controllers\API\ContainerController;
 use App\Http\Controllers\API\OrderController;
 use App\Http\Controllers\API\UserController;
-
+use App\Http\Controllers\API\SupplierController;
 
 // Ruta de prueba (para verificar que la API funciona)
 Route::get('/test', function () {
@@ -53,6 +53,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/inventory/warehouse/{warehouseId}', [InventoryController::class, 'getWarehouseInventory']);
         Route::post('/inventory/update-quantity', [InventoryController::class, 'updateQuantity']);
         Route::post('/inventory/transfer', [InventoryController::class, 'transferInventory']);
+        
+        // 🆕 NUEVA RUTA: Obtener productos con stock bajo
+        Route::get('/inventory/low-stock', [InventoryController::class, 'getLowStockProducts']);
     });
     
     // Rutas para furgones
@@ -66,27 +69,69 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     // Todos los roles autenticados pueden actualizar estado
     Route::post('/containers/{id}/update-status', [ContainerController::class, 'updateStatus']);
-    
-    // Rutas para pedidos - solo Admin y Operador
     Route::middleware('role:Admin,Operador')->group(function () {
-        Route::get('/orders', [OrderController::class, 'index']);
-        Route::post('/orders', [OrderController::class, 'store']);
-        Route::get('/orders/{id}', [OrderController::class, 'show']);
-        Route::post('/orders/{id}/update-status', [OrderController::class, 'updateStatus']);
+    Route::get('/container-suppliers', [ContainerController::class, 'getSuppliers']);
     });
 
+// Rutas para pedidos - solo Admin y Operador
+Route::middleware('role:Admin,Operador')->group(function () {
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::post('/orders', [OrderController::class, 'store']);
+    Route::get('/orders/{id}', [OrderController::class, 'show']);
+    Route::post('/orders/{id}/update-status', [OrderController::class, 'updateStatus']);
+    Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']); // NUEVA RUTA
+});
+
     // Rutas para gestión de usuarios (solo Admin)
-    Route::middleware('role:Admin')->group(function () {
-        Route::get('/users', [UserController::class, 'index']);
-        Route::post('/users', [UserController::class, 'store']);
-        Route::get('/users/{id}', [UserController::class, 'show']);
-        Route::put('/users/{id}', [UserController::class, 'update']);
-        Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
-        Route::get('/roles', [UserController::class, 'getRoles']);
-    });
+Route::middleware('role:Admin')->group(function () {
+    Route::get('/users', [UserController::class, 'index']);
+    Route::post('/users', [UserController::class, 'store']);
+    Route::get('/users/{id}', [UserController::class, 'show']);
+    Route::put('/users/{id}', [UserController::class, 'update']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
+    Route::get('/roles', [UserController::class, 'getRoles']);
+    Route::get('/user-suppliers', [UserController::class, 'getSuppliers']);
+    
+    // Gestión de contraseñas
+    Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword']);
+    Route::post('/users/{id}/generate-temp-password', [UserController::class, 'generateTempPassword']);
+});
+
+// Rutas para gestión de proveedores (solo Admin)
+Route::middleware('role:Admin')->group(function () {
+    Route::get('/suppliers', [SupplierController::class, 'index']);
+    Route::post('/suppliers', [SupplierController::class, 'store']);
+    Route::get('/suppliers/{id}', [SupplierController::class, 'show']);
+    Route::put('/suppliers/{id}', [SupplierController::class, 'update']);
+    Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
+    Route::post('/suppliers/{id}/toggle-status', [SupplierController::class, 'toggleStatus']);
+});
 
     // Ruta para obtener proveedores - solo Admin y Operador
     Route::middleware('role:Admin,Operador')->group(function () {
         Route::get('/container-suppliers', [ContainerController::class, 'getSuppliers']);
     });
+
+    // Rutas para gestión de usuarios (solo Admin)
+Route::middleware('role:Admin')->group(function () {
+    Route::get('/users', [UserController::class, 'index']);
+    Route::post('/users', [UserController::class, 'store']);
+    Route::get('/users/{id}', [UserController::class, 'show']);
+    Route::put('/users/{id}', [UserController::class, 'update']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
+    Route::get('/roles', [UserController::class, 'getRoles']);
+    
+    // Gestión de contraseñas (Solo Admin)
+    Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword']);
+    Route::post('/users/{id}/generate-temp-password', [UserController::class, 'generateTempPassword']);
+});
+
+// Ruta para que usuarios cambien su propia contraseña (todos los roles autenticados)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/change-password', [UserController::class, 'changeOwnPassword']);
+});
+
+    
 });

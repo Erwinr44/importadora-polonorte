@@ -26,10 +26,15 @@ class Container extends Model
         'actual_arrival_date' => 'date',
     ];
 
-    // Relación con proveedor
+   // Relación con proveedor (ACTUALIZAR)
     public function supplier()
     {
-        return $this->belongsTo(User::class, 'supplier_id');
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     // Relación con el historial de seguimiento
