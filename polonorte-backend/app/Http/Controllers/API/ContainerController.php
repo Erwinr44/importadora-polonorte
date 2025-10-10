@@ -106,6 +106,14 @@ class ContainerController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
+        // Disparar evento de contenedor registrado
+        event(new \App\Events\ContainerRegistered($container));
+
+        return response()->json([
+            'message' => 'Furgón registrado exitosamente',
+            'container' => $container
+        ], 201);
+
         return response()->json([
             'message' => 'Contenedor creado exitosamente',
             'container' => $container->load(['supplier', 'createdBy']),
@@ -203,19 +211,23 @@ class ContainerController extends Controller
             ], 422);
         }
         
-        // Actualizar el estado del contenedor
-        $container->status = $request->status;
+       $container->status = $request->status;
         if ($request->has('location')) {
             $container->location = $request->location;
         }
         $container->save();
-        
-        // Crear nuevo registro en el historial de seguimiento
-        $tracking = ContainerTracking::create([
+
+        // Si el furgón llegó a destino, disparar evento
+        if ($request->status === 'Recibido') {
+            event(new \App\Events\ContainerArrived($container));
+        }
+
+        // Crear tracking
+        ContainerTracking::create([
             'container_id' => $container->id,
             'status' => $request->status,
-            'location' => $request->location,
-            'notes' => $request->notes,
+            'location' => $request->location ?? '',
+            'notes' => $request->notes ?? '',
             'updated_by' => $request->user()->id,
         ]);
 

@@ -113,6 +113,14 @@ class OrderController extends Controller
             ]);
             
             DB::commit();
+
+            event(new \App\Events\OrderCreated($order));
+
+            return response()->json([
+                'message' => 'Pedido creado exitosamente',
+                'order' => $order,
+                'tracking_code' => $trackingCode
+            ], 201);
             
             return response()->json([
                 'message' => 'Pedido creado exitosamente',
@@ -174,7 +182,6 @@ class OrderController extends Controller
         $oldStatus = $order->status;
         $newStatus = $request->status;
 
-        // Iniciar transacción para asegurar consistencia
         DB::beginTransaction();
         
         try {
@@ -193,7 +200,6 @@ class OrderController extends Controller
                 }
             }
             
-            // Si se reactiva un pedido cancelado, verificar stock y reducir de nuevo
             if ($oldStatus === 'Cancelado' && $newStatus !== 'Cancelado') {
                 // Verificar que hay suficiente stock para reactivar
                 foreach ($order->products as $product) {
@@ -206,7 +212,6 @@ class OrderController extends Controller
                     }
                 }
                 
-                // Si hay suficiente stock, reducir de nuevo
                 foreach ($order->products as $product) {
                     $inventory = Inventory::where('product_id', $product->id)
                         ->where('warehouse_id', $product->pivot->warehouse_id)
@@ -217,15 +222,18 @@ class OrderController extends Controller
                 }
             }
             
-            // Actualizar estado del pedido
-            $order->status = $newStatus;
+            $oldStatus = $order->status;
+            $order->status = $request->status;
             $order->save();
-            
-            // Crear registro de seguimiento
+
+            // Disparar evento de cambio de estado
+            event(new \App\Events\OrderStatusChanged($order, $oldStatus, $request->status));
+
+            // Crear tracking
             OrderTracking::create([
                 'order_id' => $order->id,
-                'status' => $newStatus,
-                'notes' => $request->notes ?? "Estado actualizado a: {$newStatus}",
+                'status' => $request->status,
+                'notes' => $request->notes ?? '',
                 'updated_by' => $request->user()->id,
             ]);
             
@@ -246,26 +254,19 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Cancel an order and restore inventory
-     */
     public function cancel(Request $request, string $id)
     {
-        // Crear un request con status = Cancelado para usar el método updateStatus
         $cancelRequest = new Request([
             'status' => 'Cancelado',
             'notes' => $request->input('notes', 'Pedido cancelado desde el panel de administración')
         ]);
         
-        // Copiar el usuario del request original
         $cancelRequest->setUserResolver($request->getUserResolver());
         
         return $this->updateStatus($cancelRequest, $id);
     }
 
-    /**
-     * Track an order by its tracking code (public endpoint).
-     */
+
     public function trackByCode(string $trackingCode)
     {
         $order = Order::with('trackingHistory')->where('tracking_code', $trackingCode)->first();

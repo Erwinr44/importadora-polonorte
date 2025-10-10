@@ -190,7 +190,15 @@ class InventoryController extends Controller
             }
             
             $inventory->save();
-            
+
+            // Verificar si el stock está bajo el mínimo
+            $product = Product::find($request->product_id);
+            $totalStock = Inventory::where('product_id', $request->product_id)->sum('quantity');
+
+            if ($totalStock < $product->min_stock) {
+                event(new \App\Events\LowStockDetected($product, $totalStock));
+            }
+
             DB::commit();
             
             return response()->json([
