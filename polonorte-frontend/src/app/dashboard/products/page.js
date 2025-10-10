@@ -4,25 +4,22 @@ import { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import { useAuth } from '@/contexts/AuthContext';
 
-// 📍 UBICACIÓN: polonorte-frontend/src/app/dashboard/products/page.js
-
 export default function ProductsPage() {
   const { user } = useAuth();
   
-  // Estados para datos principales
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [unitTypes, setUnitTypes] = useState([]);
+  const [weightUnits, setWeightUnits] = useState([]);
   
-  // Estados para UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [filterStock, setFilterStock] = useState('all'); // all, low, out, normal
+  const [filterStock, setFilterStock] = useState('all');
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   
-  // Estados para modals y formularios
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(false);
@@ -33,27 +30,30 @@ export default function ProductsPage() {
     description: '',
     category: '',
     price: '',
+    unit_type: 'unidad',
+    unit_weight: '',
+    weight_unit: '',
     min_stock: '',
     active: true
   });
   const [errors, setErrors] = useState({});
 
-  // 🔄 Cargar datos al montar el componente
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         
-        // Cargar productos y bodegas en paralelo
-        const [productsRes, warehousesRes] = await Promise.all([
+        const [productsRes, warehousesRes, unitTypesRes] = await Promise.all([
           axios.get('/products'),
-          axios.get('/warehouses')
+          axios.get('/warehouses'),
+          axios.get('/unit-types')
         ]);
         
         setProducts(productsRes.data);
         setWarehouses(warehousesRes.data);
+        setUnitTypes(unitTypesRes.data.unit_types || []);
+        setWeightUnits(unitTypesRes.data.weight_units || []);
         
-        // Extraer categorías únicas de productos
         const uniqueCategories = [...new Set(
           productsRes.data
             .map(p => p.category)
@@ -74,20 +74,14 @@ export default function ProductsPage() {
     }
   }, [user]);
 
-  // 🔍 Filtrar productos según criterios
   const filteredProducts = products.filter(product => {
-    // Filtro de búsqueda
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    // Filtro de categoría
     const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
-    
-    // Filtro de estado activo
     const matchesActive = showActiveOnly ? product.active : true;
     
-    // Filtro de stock
     let matchesStock = true;
     if (filterStock === 'out') {
       matchesStock = product.total_stock === 0;
@@ -100,7 +94,6 @@ export default function ProductsPage() {
     return matchesSearch && matchesCategory && matchesActive && matchesStock;
   });
 
-  // 🎨 Obtener color de badge según nivel de stock
   const getStockBadgeColor = (totalStock, minStock) => {
     if (totalStock === 0) return 'bg-red-100 text-red-800';
     if (totalStock < minStock * 0.5) return 'bg-orange-100 text-orange-800';
@@ -108,7 +101,6 @@ export default function ProductsPage() {
     return 'bg-green-100 text-green-800';
   };
 
-  // 🎨 Obtener texto de estado de stock
   const getStockStatusText = (totalStock, minStock) => {
     if (totalStock === 0) return 'Sin Stock';
     if (totalStock < minStock * 0.5) return 'Crítico';
@@ -116,7 +108,6 @@ export default function ProductsPage() {
     return 'Normal';
   };
 
-  // 📝 Resetear formulario
   const resetForm = () => {
     setProductForm({
       name: '',
@@ -124,13 +115,15 @@ export default function ProductsPage() {
       description: '',
       category: '',
       price: '',
+      unit_type: 'unidad',
+      unit_weight: '',
+      weight_unit: '',
       min_stock: '',
       active: true
     });
     setErrors({});
   };
 
-  // 📝 Validar formulario
   const validateForm = () => {
     const newErrors = {};
     
@@ -149,12 +142,20 @@ export default function ProductsPage() {
     if (productForm.min_stock && (isNaN(productForm.min_stock) || parseInt(productForm.min_stock) < 0)) {
       newErrors.min_stock = 'El stock mínimo debe ser un número entero mayor o igual a 0';
     }
+
+    if (productForm.unit_weight && productForm.unit_weight.trim() !== '') {
+      if (isNaN(productForm.unit_weight) || parseFloat(productForm.unit_weight) < 0) {
+        newErrors.unit_weight = 'El peso debe ser un número válido';
+      }
+      if (!productForm.weight_unit || productForm.weight_unit.trim() === '') {
+        newErrors.weight_unit = 'Debe seleccionar el tipo de peso';
+      }
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // 📝 Crear nuevo producto
   const handleCreate = async (e) => {
     e.preventDefault();
     
@@ -166,20 +167,19 @@ export default function ProductsPage() {
       const formData = {
         ...productForm,
         price: parseFloat(productForm.price) || 0,
-        min_stock: parseInt(productForm.min_stock) || 0
+        min_stock: parseInt(productForm.min_stock) || 0,
+        unit_weight: productForm.unit_weight ? parseFloat(productForm.unit_weight) : null,
+        weight_unit: productForm.weight_unit || null
       };
       
       const response = await axios.post('/products', formData);
       
-      // Actualizar lista de productos
       setProducts([...products, response.data.product]);
       
-      // Actualizar categorías si es nueva
       if (formData.category && !categories.includes(formData.category)) {
         setCategories([...categories, formData.category].sort());
       }
       
-      // Cerrar modal y resetear formulario
       setShowCreateModal(false);
       resetForm();
       
@@ -195,7 +195,6 @@ export default function ProductsPage() {
     }
   };
 
-  // 📝 Actualizar producto existente
   const handleUpdate = async (e) => {
     e.preventDefault();
     
@@ -207,21 +206,20 @@ export default function ProductsPage() {
       const formData = {
         ...productForm,
         price: parseFloat(productForm.price) || 0,
-        min_stock: parseInt(productForm.min_stock) || 0
+        min_stock: parseInt(productForm.min_stock) || 0,
+        unit_weight: productForm.unit_weight ? parseFloat(productForm.unit_weight) : null,
+        weight_unit: productForm.weight_unit || null
       };
       
       await axios.put(`/products/${selectedProduct.id}`, formData);
       
-      // Recargar productos para obtener información actualizada con stock
       const productsRes = await axios.get('/products');
       setProducts(productsRes.data);
       
-      // Actualizar categorías si es nueva
       if (formData.category && !categories.includes(formData.category)) {
         setCategories([...categories, formData.category].sort());
       }
       
-      // Cerrar modal y resetear formulario
       setShowEditModal(false);
       setSelectedProduct(null);
       resetForm();
@@ -238,9 +236,7 @@ export default function ProductsPage() {
     }
   };
 
-  // 🗑️ Eliminar producto
   const handleDelete = async (product) => {
-    // Verificar si tiene stock en alguna bodega
     const hasStock = product.total_stock > 0;
     
     if (hasStock) {
@@ -254,19 +250,14 @@ export default function ProductsPage() {
     
     try {
       await axios.delete(`/products/${product.id}`);
-      
-      // Actualizar lista de productos
       setProducts(products.filter(p => p.id !== product.id));
-      
       alert('Producto eliminado exitosamente');
-      
     } catch (error) {
       console.error('Error eliminando producto:', error);
       alert(error.response?.data?.message || 'Error al eliminar el producto');
     }
   };
 
-  // 🔄 Toggle estado activo/inactivo
   const handleToggleStatus = async (product) => {
     const newStatus = !product.active;
     const action = newStatus ? 'activar' : 'desactivar';
@@ -281,19 +272,16 @@ export default function ProductsPage() {
         active: newStatus
       });
       
-      // Recargar productos
       const productsRes = await axios.get('/products');
       setProducts(productsRes.data);
       
       alert(`Producto ${newStatus ? 'activado' : 'desactivado'} exitosamente`);
-      
     } catch (error) {
       console.error('Error cambiando estado:', error);
       alert('Error al cambiar el estado del producto');
     }
   };
 
-  // 📊 Ver stock detallado por bodega
   const handleViewStock = async (product) => {
     try {
       const response = await axios.get(`/inventory/product/${product.id}`);
@@ -308,7 +296,6 @@ export default function ProductsPage() {
     }
   };
 
-  // 🚫 Verificar permisos
   if (!user || !['Admin', 'Operador'].includes(user.role)) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -345,9 +332,9 @@ export default function ProductsPage() {
     );
   }
 
+  
   return (
     <div className="space-y-6">
-      {/* 📊 Header con estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900">Total Productos</h3>
@@ -377,11 +364,9 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* 🔧 Panel de control */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-6">
           <div className="flex flex-col space-y-4">
-            {/* 🔍 Primera fila: Búsqueda y botón crear */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
               <input
                 type="text"
@@ -404,7 +389,6 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            {/* 🔽 Segunda fila: Filtros */}
             <div className="flex flex-wrap gap-4 items-center">
               <select
                 value={filterCategory}
@@ -438,7 +422,6 @@ export default function ProductsPage() {
                 <span className="text-sm text-gray-700">Solo activos</span>
               </label>
 
-              {/* 📊 Contador de resultados */}
               <div className="text-sm text-gray-600 ml-auto">
                 Mostrando {filteredProducts.length} de {products.length} productos
               </div>
@@ -446,7 +429,6 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        {/* 📋 Tabla de productos */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -461,13 +443,16 @@ export default function ProductsPage() {
                   Categoría
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Unidad
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Precio
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Stock Total
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock Mín.
+                  Peso Total
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Estado
@@ -503,15 +488,31 @@ export default function ProductsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {product.unit_type ? product.unit_type.charAt(0).toUpperCase() + product.unit_type.slice(1) : 'Unidad'}
+                    </div>
+                    {product.unit_weight && product.weight_unit && (
+                      <div className="text-xs text-gray-500">
+                        {product.unit_weight} {product.weight_unit} c/u
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm font-medium text-gray-900">
                       Q{parseFloat(product.price).toFixed(2)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
-                      <span className="text-lg font-bold text-gray-900">
-                        {product.total_stock}
-                      </span>
+                      <div>
+                        <span className="text-lg font-bold text-gray-900">
+                          {product.total_stock}
+                        </span>
+                        <span className="text-xs text-gray-500 ml-1">
+                          {product.unit_type || 'unidad'}
+                          {product.total_stock !== 1 ? 's' : ''}
+                        </span>
+                      </div>
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         getStockBadgeColor(product.total_stock, product.min_stock)
                       }`}>
@@ -520,9 +521,13 @@ export default function ProductsPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-600">
-                      {product.min_stock}
-                    </span>
+                    {product.total_weight ? (
+                      <div className="text-sm font-medium text-blue-600">
+                        {parseFloat(product.total_weight).toFixed(2)} {product.weight_unit}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -534,7 +539,6 @@ export default function ProductsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    {/* 📊 Ver stock por bodega */}
                     <button
                       onClick={() => handleViewStock(product)}
                       className="text-blue-600 hover:text-blue-900"
@@ -545,7 +549,6 @@ export default function ProductsPage() {
                       </svg>
                     </button>
 
-                    {/* ✏️ Editar */}
                     <button
                       onClick={() => {
                         setSelectedProduct(product);
@@ -555,6 +558,9 @@ export default function ProductsPage() {
                           description: product.description || '',
                           category: product.category || '',
                           price: product.price.toString(),
+                          unit_type: product.unit_type || 'unidad',
+                          unit_weight: product.unit_weight || '',
+                          weight_unit: product.weight_unit || '',
                           min_stock: product.min_stock.toString(),
                           active: product.active
                         });
@@ -568,7 +574,6 @@ export default function ProductsPage() {
                       </svg>
                     </button>
 
-                    {/* 🔄 Toggle estado */}
                     <button
                       onClick={() => handleToggleStatus(product)}
                       className={`${product.active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}
@@ -585,7 +590,6 @@ export default function ProductsPage() {
                       )}
                     </button>
 
-                    {/* 🗑️ Eliminar */}
                     <button
                       onClick={() => handleDelete(product)}
                       className="text-red-600 hover:text-red-900"
@@ -618,473 +622,171 @@ export default function ProductsPage() {
           )}
         </div>
       </div>
-
-      {/* 🆕 Modal Crear Producto */}
+{/* Modal Crear */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Nuevo Producto</h3>
-            
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={productForm.name}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ej: Pacas de ropa"
-                    required
-                  />
-                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre <span className="text-red-500">*</span></label>
+                  <input type="text" value={productForm.name} onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Pacas de ropa" required />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Código <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={productForm.code}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ej: PACA001"
-                    required
-                  />
-                  {errors.code && <p className="text-red-500 text-xs mt-1">{errors.code}</p>}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Código <span className="text-red-500">*</span></label>
+                  <input type="text" value={productForm.code} onChange={(e) => setProductForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: PACA001" required />
+                  {errors.code && <p className="text-red-500 text-xs mt-1">{errors.code[0]}</p>}
                 </div>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción
-                </label>
-                <textarea
-                  value={productForm.description}
-                  onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Descripción del producto..."
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                <textarea value={productForm.description} onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Descripción del producto..." />
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Categoría
-                  </label>
-                  <input
-                    type="text"
-                    value={productForm.category}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ej: Ropa"
-                    list="categories-list"
-                  />
-                  <datalist id="categories-list">
-                    {categories.map(category => (
-                      <option key={category} value={category} />
-                    ))}
-                  </datalist>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                  <input type="text" value={productForm.category} onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Ropa" list="categories-list" />
+                  <datalist id="categories-list">{categories.map(category => (<option key={category} value={category} />))}</datalist>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Precio (Q) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={productForm.price}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.00"
-                    required
-                  />
-                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio (Q) <span className="text-red-500">*</span></label>
+                  <input type="number" step="0.01" min="0" value={productForm.price} onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.00" required />
+                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price[0]}</p>}
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Stock Mínimo <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={productForm.min_stock}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, min_stock: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0"
-                    required
-                  />
-                  {errors.min_stock && <p className="text-red-500 text-xs mt-1">{errors.min_stock}</p>}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Mínimo <span className="text-red-500">*</span></label>
+                  <input type="number" min="0" value={productForm.min_stock} onChange={(e) => setProductForm(prev => ({ ...prev, min_stock: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" required />
+                  {errors.min_stock && <p className="text-red-500 text-xs mt-1">{errors.min_stock[0]}</p>}
                 </div>
               </div>
-
+              <div className="border-t pt-4">
+                <h4 className="text-md font-medium text-gray-900 mb-3">📦 Unidades de Medida</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Unidad <span className="text-red-500">*</span></label>
+                    <select value={productForm.unit_type} onChange={(e) => setProductForm(prev => ({ ...prev, unit_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                      {unitTypes.map(type => (<option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">¿En qué unidad se cuenta?</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Peso/Medida por Unidad</label>
+                    <input type="number" step="0.01" min="0" value={productForm.unit_weight} onChange={(e) => setProductForm(prev => ({ ...prev, unit_weight: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1000" />
+                    {errors.unit_weight && <p className="text-red-500 text-xs mt-1">{errors.unit_weight[0]}</p>}
+                    <p className="text-xs text-gray-500 mt-1">Opcional</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Peso</label>
+                    <select value={productForm.weight_unit} onChange={(e) => setProductForm(prev => ({ ...prev, weight_unit: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={!productForm.unit_weight}>
+                      <option value="">Seleccionar...</option>
+                      {weightUnits.map(unit => (<option key={unit} value={unit}>{unit.charAt(0).toUpperCase() + unit.slice(1)}</option>))}
+                    </select>
+                    {errors.weight_unit && <p className="text-red-500 text-xs mt-1">{errors.weight_unit[0]}</p>}
+                    <p className="text-xs text-gray-500 mt-1">Requerido si especificó peso</p>
+                  </div>
+                </div>
+                {productForm.unit_type && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-sm text-blue-800"><strong>Ejemplo:</strong> Si registra 10 en inventario = 10 {productForm.unit_type}s
+                      {productForm.unit_weight && productForm.weight_unit && (<span> (cada {productForm.unit_type} pesa {productForm.unit_weight} {productForm.weight_unit})<span className="block mt-1">Peso total: <strong>{(parseFloat(productForm.unit_weight || 0) * 10).toFixed(2)} {productForm.weight_unit}</strong></span></span>)}
+                    </p>
+                  </div>
+                )}
+              </div>
               <div>
                 <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={productForm.active}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, active: e.target.checked }))}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
+                  <input type="checkbox" checked={productForm.active} onChange={(e) => setProductForm(prev => ({ ...prev, active: e.target.checked }))} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                   <span className="text-sm text-gray-700">Producto activo</span>
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
-                  Solo los productos activos aparecerán en los formularios de pedidos
-                </p>
               </div>
-
               <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Crear Producto
-                </button>
+                <button type="button" onClick={() => { setShowCreateModal(false); resetForm(); }} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Crear Producto</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ✏️ Modal Editar Producto */}
+      {/* Modal Editar - Usa EXACTAMENTE la misma estructura que Crear */}
       {showEditModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Editar Producto: {selectedProduct.name}
-            </h3>
-            
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Editar: {selectedProduct.name}</h3>
             <form onSubmit={handleUpdate} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={productForm.name}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ej: Pacas de ropa"
-                    required
-                  />
-                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Código <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={productForm.code}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ej: PACA001"
-                    required
-                  />
-                  {errors.code && <p className="text-red-500 text-xs mt-1">{errors.code}</p>}
-                </div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre <span className="text-red-500">*</span></label><input type="text" value={productForm.name} onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Código <span className="text-red-500">*</span></label><input type="text" value={productForm.code} onChange={(e) => setProductForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción
-                </label>
-                <textarea
-                  value={productForm.description}
-                  onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Descripción del producto..."
-                />
-              </div>
-
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label><textarea value={productForm.description} onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Categoría
-                  </label>
-                  <input
-                    type="text"
-                    value={productForm.category}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ej: Ropa"
-                    list="categories-list-edit"
-                  />
-                  <datalist id="categories-list-edit">
-                    {categories.map(category => (
-                      <option key={category} value={category} />
-                    ))}
-                  </datalist>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Precio (Q) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={productForm.price}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.00"
-                    required
-                  />
-                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Stock Mínimo <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={productForm.min_stock}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, min_stock: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0"
-                    required
-                  />
-                  {errors.min_stock && <p className="text-red-500 text-xs mt-1">{errors.min_stock}</p>}
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label><input type="text" value={productForm.category} onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" list="categories-list-edit" /><datalist id="categories-list-edit">{categories.map(category => (<option key={category} value={category} />))}</datalist></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Precio (Q) <span className="text-red-500">*</span></label><input type="number" step="0.01" min="0" value={productForm.price} onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Stock Mínimo <span className="text-red-500">*</span></label><input type="number" min="0" value={productForm.min_stock} onChange={(e) => setProductForm(prev => ({ ...prev, min_stock: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
+              </div>
+              <div className="border-t pt-4">
+                <h4 className="text-md font-medium text-gray-900 mb-3">📦 Unidades de Medida</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Unidad <span className="text-red-500">*</span></label><select value={productForm.unit_type} onChange={(e) => setProductForm(prev => ({ ...prev, unit_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>{unitTypes.map(type => (<option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>))}</select></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Peso por Unidad</label><input type="number" step="0.01" min="0" value={productForm.unit_weight} onChange={(e) => setProductForm(prev => ({ ...prev, unit_weight: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Peso</label><select value={productForm.weight_unit} onChange={(e) => setProductForm(prev => ({ ...prev, weight_unit: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={!productForm.unit_weight}><option value="">Seleccionar...</option>{weightUnits.map(unit => (<option key={unit} value={unit}>{unit.charAt(0).toUpperCase() + unit.slice(1)}</option>))}</select></div>
                 </div>
               </div>
-
-              <div>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={productForm.active}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, active: e.target.checked }))}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">Producto activo</span>
-                </label>
-              </div>
-
+              <div><label className="flex items-center space-x-2"><input type="checkbox" checked={productForm.active} onChange={(e) => setProductForm(prev => ({ ...prev, active: e.target.checked }))} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" /><span className="text-sm text-gray-700">Producto activo</span></label></div>
               <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setSelectedProduct(null);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Actualizar
-                </button>
+                <button type="button" onClick={() => { setShowEditModal(false); setSelectedProduct(null); resetForm(); }} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Actualizar</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* 📊 Modal Ver Stock por Bodega */}
+      {/* Modal Ver Stock */}
       {showStockModal && selectedProduct && selectedProduct.inventory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">
-                  Stock por Bodega: {selectedProduct.name}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Código: {selectedProduct.code} | Total: {selectedProduct.total_stock} unidades
+                <h3 className="text-lg font-medium text-gray-900">Stock por Bodega: {selectedProduct.name}</h3>
+                <p className="text-sm text-gray-600">Código: {selectedProduct.code} | Total: {selectedProduct.total_stock} {selectedProduct.unit_type}s
+                  {selectedProduct.total_weight && (<span className="ml-2 font-medium text-blue-600">({parseFloat(selectedProduct.total_weight).toFixed(2)} {selectedProduct.weight_unit})</span>)}
                 </p>
               </div>
-              <button
-                onClick={() => setShowStockModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <button onClick={() => setShowStockModal(false)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-
             {selectedProduct.inventory.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="mx-auto h-12 w-12 text-gray-400 mb-4">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v1M4 6h16" />
-                  </svg>
-                </div>
-                <h4 className="text-lg font-medium text-gray-900 mb-2">Sin Stock</h4>
-                <p className="text-gray-500">Este producto no tiene stock en ninguna bodega</p>
-              </div>
+              <div className="text-center py-8"><p className="text-gray-500">Este producto no tiene stock en ninguna bodega</p></div>
             ) : (
-              <>
-                {/* 📊 Gráfico visual de distribución */}
-                <div className="mb-6">
-                  <h4 className="text-md font-medium text-gray-900 mb-3">Distribución por Bodega</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {selectedProduct.inventory.map((item) => {
-                      const percentage = selectedProduct.total_stock > 0 
-                        ? (item.quantity / selectedProduct.total_stock) * 100 
-                        : 0;
-                      
-                      return (
-                        <div key={item.id} className="bg-gray-50 rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h5 className="font-medium text-gray-900">{item.warehouse.name}</h5>
-                              <p className="text-sm text-gray-600">{item.warehouse.location}</p>
-                            </div>
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              getStockBadgeColor(item.quantity, selectedProduct.min_stock)
-                            }`}>
-                              {getStockStatusText(item.quantity, selectedProduct.min_stock)}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <div className="flex-1">
-                              <div className="bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className="bg-blue-500 h-2 rounded-full" 
-                                  style={{ width: `${Math.max(percentage, 5)}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-gray-900">{item.quantity}</div>
-                              <div className="text-xs text-gray-500">{percentage.toFixed(1)}%</div>
-                            </div>
-                          </div>
+              <div className="space-y-4">
+                {selectedProduct.inventory.map((item) => {
+                  const percentage = selectedProduct.total_stock > 0 ? (item.quantity / selectedProduct.total_stock) * 100 : 0;
+                  const itemWeight = selectedProduct.unit_weight ? (item.quantity * selectedProduct.unit_weight).toFixed(2) : null;
+                  return (
+                    <div key={item.id} className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div><h5 className="font-medium text-gray-900">{item.warehouse.name}</h5><p className="text-sm text-gray-600">{item.warehouse.location}</p></div>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStockBadgeColor(item.quantity, selectedProduct.min_stock)}`}>{getStockStatusText(item.quantity, selectedProduct.min_stock)}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-1"><div className="bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.max(percentage, 5)}%` }}></div></div></div>
+                          <div className="text-right"><div className="text-lg font-bold text-gray-900">{item.quantity} {selectedProduct.unit_type}s</div><div className="text-xs text-gray-500">{percentage.toFixed(1)}%</div></div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 📋 Tabla detallada */}
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Bodega
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ubicación
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Cantidad
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          % del Total
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Estado
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Última Act.
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {selectedProduct.inventory.map((item) => {
-                        const percentage = selectedProduct.total_stock > 0 
-                          ? (item.quantity / selectedProduct.total_stock) * 100 
-                          : 0;
-                        
-                        return (
-                          <tr key={item.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">
-                                {item.warehouse.name}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-600">
-                                {item.warehouse.location || 'No especificada'}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <span className="text-lg font-bold text-gray-900">
-                                {item.quantity}
-                              </span>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <span className="text-sm text-gray-600">
-                                {percentage.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                getStockBadgeColor(item.quantity, selectedProduct.min_stock)
-                              }`}>
-                                {getStockStatusText(item.quantity, selectedProduct.min_stock)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-600">
-                                {new Date(item.updated_at).toLocaleDateString()}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
+                        {itemWeight && (<div className="text-sm text-blue-600 font-medium">Peso: {itemWeight} {selectedProduct.weight_unit}</div>)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
-
-            <div className="flex justify-between items-center mt-6 pt-4 border-t">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">Stock mínimo requerido:</span> {selectedProduct.min_stock} unidades
-                {selectedProduct.total_stock < selectedProduct.min_stock && (
-                  <span className="ml-2 text-red-600 font-medium">
-                    (Déficit: {selectedProduct.min_stock - selectedProduct.total_stock})
-                  </span>
-                )}
-              </div>
-              <div className="space-x-2">
-                <button
-                  onClick={() => {
-                    setShowStockModal(false);
-                    // Redirigir a inventario
-                    window.location.href = '/dashboard/inventory';
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Gestionar Inventario
-                </button>
-                <button
-                  onClick={() => setShowStockModal(false)}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                >
-                  Cerrar
-                </button>
-              </div>
+            <div className="flex justify-end mt-6 pt-4 border-t space-x-2">
+              <button onClick={() => { setShowStockModal(false); window.location.href = '/dashboard/inventory'; }} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Gestionar Inventario</button>
+              <button onClick={() => setShowStockModal(false)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Cerrar</button>
             </div>
           </div>
         </div>
