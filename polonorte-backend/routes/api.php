@@ -10,7 +10,6 @@ use App\Http\Controllers\API\OrderController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\SettingController;
 
-
 // Ruta de prueba (para verificar que la API funciona)
 Route::get('/test', function () {
     return response()->json(['message' => 'API funcionando correctamente']);
@@ -59,17 +58,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas para furgones
     Route::get('/containers', [ContainerController::class, 'index']);
     Route::get('/containers/{id}', [ContainerController::class, 'show']);
-    // Permitir a los proveedores crear furgones
     Route::post('/containers', [ContainerController::class, 'store']);
-    // Solo Admin y Operador pueden editar y eliminar
+    Route::post('/containers/{id}/update-status', [ContainerController::class, 'updateStatus']);
+    
+    // Solo Admin y Operador pueden editar y eliminar furgones
     Route::middleware('role:Admin,Operador')->group(function () {
         Route::put('/containers/{id}', [ContainerController::class, 'update']);
         Route::delete('/containers/{id}', [ContainerController::class, 'destroy']);
+        Route::get('/container-suppliers', [ContainerController::class, 'getSuppliers']);
     });
-    // Actualizar estado (proveedor, admin, operador)
-    Route::post('/containers/{id}/update-status', [ContainerController::class, 'updateStatus']);
-    // Proveedores que pueden gestionar contenedores
-    Route::get('/container-suppliers', [ContainerController::class, 'getSuppliers']);
     
     // Rutas para pedidos - solo Admin y Operador
     Route::middleware('role:Admin,Operador')->group(function () {
@@ -80,6 +77,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/orders/{id}', [OrderController::class, 'destroy']);
         Route::post('/orders/{id}/update-status', [OrderController::class, 'updateStatus']);
         Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']);
+    });
+    
+    // Rutas para reportes - solo Admin y Operador
+    Route::middleware('role:Admin,Operador')->group(function () {
         Route::post('/reports/sales', [App\Http\Controllers\API\ReportController::class, 'salesReport']);
         Route::post('/reports/containers', [App\Http\Controllers\API\ReportController::class, 'containersReport']);
         Route::post('/reports/inventory', [App\Http\Controllers\API\ReportController::class, 'inventoryReport']);
@@ -90,7 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/reports/containers/pdf', [App\Http\Controllers\API\ReportController::class, 'exportContainersPDF']);
         Route::post('/reports/inventory/pdf', [App\Http\Controllers\API\ReportController::class, 'exportInventoryPDF']);
         Route::post('/reports/customers/pdf', [App\Http\Controllers\API\ReportController::class, 'exportCustomersPDF']);
-});
+    });
     
     // Rutas para usuarios - solo Admin
     Route::middleware('role:Admin')->group(function () {
@@ -101,7 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
     });
     
-    // Rutas para roles (para los formularios de usuarios)
+    // Rutas para roles (accesible para Admin)
     Route::get('/roles', [UserController::class, 'getRoles']);
     
     // Rutas para configuración del sistema - solo Admin
@@ -114,11 +115,11 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Rutas para notificaciones - solo Admin
-    Route::middleware(['auth:sanctum', 'role:Admin'])->group(function () {
-    Route::get('/notifications', [App\Http\Controllers\API\NotificationController::class, 'index']);
-    Route::get('/notifications/stats', [App\Http\Controllers\API\NotificationController::class, 'stats']);
-    Route::get('/notifications/{id}', [App\Http\Controllers\API\NotificationController::class, 'show']);
-    Route::post('/notifications/{id}/retry', [App\Http\Controllers\API\NotificationController::class, 'retry']);
-    Route::post('/notifications/retry-all', [App\Http\Controllers\API\NotificationController::class, 'retryAll']);
-});
+    Route::middleware('role:Admin')->group(function () {
+        Route::get('/notifications', [App\Http\Controllers\API\NotificationController::class, 'index']);
+        Route::get('/notifications/stats', [App\Http\Controllers\API\NotificationController::class, 'stats']);
+        Route::get('/notifications/{id}', [App\Http\Controllers\API\NotificationController::class, 'show']);
+        Route::post('/notifications/{id}/retry', [App\Http\Controllers\API\NotificationController::class, 'retry']);
+        Route::post('/notifications/retry-all', [App\Http\Controllers\API\NotificationController::class, 'retryAll']);
+    });
 });
