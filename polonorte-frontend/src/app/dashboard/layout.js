@@ -5,8 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
 
-// 📍 UBICACIÓN: polonorte-frontend/src/app/dashboard/layout.js
-
 export default function DashboardLayout({ children }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
@@ -31,7 +29,6 @@ export default function DashboardLayout({ children }) {
     if (pathname === '/dashboard') return 'Dashboard';
     if (pathname === '/dashboard/products') return 'Productos';
     if (pathname === '/dashboard/inventory') return 'Inventario';
-    if (pathname === '/dashboard/warehouses') return 'Bodegas'; // 🆕 NUEVO
     if (pathname === '/dashboard/containers') return 'Furgones';
     if (pathname.startsWith('/dashboard/containers/')) {
       if (pathname.includes('/new')) return 'Nuevo Furgón';
@@ -43,6 +40,9 @@ export default function DashboardLayout({ children }) {
     if (pathname === '/dashboard/users') return 'Gestión de Usuarios';
     if (pathname === '/dashboard/users/new') return 'Nuevo Usuario';
     if (pathname.startsWith('/dashboard/users/') && pathname !== '/dashboard/users/new') return 'Editar Usuario';
+    if (pathname === '/dashboard/reports') return 'Reportes';
+    if (pathname === '/dashboard/settings') return 'Configuración del Sistema';
+    if (pathname === '/dashboard/notifications') return 'Historial de Notificaciones';
     return 'Dashboard';
   };
 
@@ -59,7 +59,7 @@ export default function DashboardLayout({ children }) {
             href="/dashboard" 
             className={`block py-2 px-6 ${pathname === '/dashboard' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
           >
-            Dashboard
+            📊 Dashboard
           </Link>
           
           {/* Ocultar estas opciones para el rol Proveedor */}
@@ -69,86 +69,107 @@ export default function DashboardLayout({ children }) {
                 href="/dashboard/products" 
                 className={`block py-2 px-6 ${pathname === '/dashboard/products' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
               >
-                Productos
+                📦 Productos
               </Link>
               <Link 
                 href="/dashboard/inventory" 
                 className={`block py-2 px-6 ${pathname === '/dashboard/inventory' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
               >
-                Inventario
-              </Link>
-              {/* 🆕 NUEVA OPCIÓN: Bodegas */}
-              <Link 
-                href="/dashboard/warehouses" 
-                className={`block py-2 px-6 ${pathname === '/dashboard/warehouses' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
-              >
-                Bodegas
+                🏪 Inventario
               </Link>
             </>
           )}
           
           <Link 
             href="/dashboard/containers" 
-            className={`block py-2 px-6 ${pathname === '/dashboard/containers' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
+            className={`block py-2 px-6 ${pathname.startsWith('/dashboard/containers') ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
           >
-            Furgones
+            🚚 Furgones
           </Link>
           
-          {/* Ocultar Pedidos para el rol Proveedor */}
+          {/* Ocultar pedidos para proveedores */}
           {!isProvider && (
             <Link 
               href="/dashboard/orders" 
-              className={`block py-2 px-6 ${pathname === '/dashboard/orders' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
+              className={`block py-2 px-6 ${pathname.startsWith('/dashboard/orders') ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
             >
-              Pedidos
-            </Link>
-          )}
-          
-          {/* Mostrar gestión de usuarios solo para Admin */}
-          {user && user.role === 'Admin' && (
-            <Link 
-              href="/dashboard/users" 
-              className={`block py-2 px-6 ${pathname === '/dashboard/users' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
-            >
-              Usuarios
+              📋 Pedidos
             </Link>
           )}
 
-          {/* Mostrar gestión de proveedores solo para Admin */}
-          {user && user.role === 'Admin' && (
+          {/* Reportes - visible para Admin y Operador */}
+          {!isProvider && (
             <Link 
-              href="/dashboard/suppliers" 
-              className={`block py-2 px-6 ${pathname === '/dashboard/suppliers' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
+              href="/dashboard/reports" 
+              className={`block py-2 px-6 ${pathname === '/dashboard/reports' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
             >
-              Proveedores
+              📊 Reportes
+            </Link>
+          )}
+
+          {/* Configuración - solo visible para Admin */}
+          {user?.role === 'Admin' && (
+            <Link 
+              href="/dashboard/settings" 
+              className={`block py-2 px-6 ${pathname === '/dashboard/settings' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
+            >
+              ⚙️ Configuración
+            </Link>
+          )}
+
+          {/* Notificaciones - solo visible para Admin */}
+          {user?.role === 'Admin' && (
+            <Link 
+              href="/dashboard/notifications" 
+              className={`block py-2 px-6 ${pathname === '/dashboard/notifications' ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
+            >
+              🔔 Notificaciones
+            </Link>
+          )}
+          
+          {/* Usuarios - solo visible para Admin */}
+          {user?.role === 'Admin' && (
+            <Link 
+              href="/dashboard/users" 
+              className={`block py-2 px-6 ${pathname.startsWith('/dashboard/users') ? 'bg-gray-100 font-medium' : 'hover:bg-gray-100'}`}
+            >
+              👥 Usuarios
             </Link>
           )}
         </nav>
 
-        <div className="absolute bottom-0 w-64 p-4 border-t">
-          <div className="text-sm text-gray-600 mb-2">
-            {user.name} ({user.role})
+        <div className="absolute bottom-0 w-64 p-6 border-t border-gray-200">
+          <div className="flex items-center mb-4">
+            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+              {user?.name?.charAt(0).toUpperCase()}
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-700">{user?.name}</p>
+              <p className="text-xs text-gray-500">{user?.role}</p>
+            </div>
           </div>
-          <button 
-            onClick={logout} 
-            className="text-sm text-red-600 hover:text-red-800"
+          <button
+            onClick={logout}
+            className="w-full text-left py-2 px-4 text-sm text-gray-700 hover:bg-gray-100 rounded"
           >
-            Cerrar sesión
+            🚪 Cerrar Sesión
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
         <header className="bg-white shadow-sm">
-          <div className="mx-auto py-4 px-6">
-            <h2 className="text-lg font-semibold text-gray-800">
+          <div className="flex items-center justify-between p-4">
+            <h2 className="text-xl font-semibold text-gray-800">
               {getPageTitle()}
             </h2>
           </div>
         </header>
 
-        <main className="p-6">
+        {/* Page Content */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
           {children}
         </main>
       </div>
