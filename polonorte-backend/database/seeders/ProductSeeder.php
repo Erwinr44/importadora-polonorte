@@ -47,20 +47,30 @@ class ProductSeeder extends Seeder
         ];
 
         foreach ($products as $productData) {
-            $product = Product::create($productData);
+            // Verificar si el producto ya existe por su código
+            $product = Product::where('code', $productData['code'])->first();
             
-            // Añadir inventario inicial en las bodegas
-            Inventory::create([
-                'product_id' => $product->id,
-                'warehouse_id' => 1, // Bodega Central
-                'quantity' => rand(50, 100),
-            ]);
-            
-            Inventory::create([
-                'product_id' => $product->id,
-                'warehouse_id' => 2, // Bodega Sur
-                'quantity' => rand(20, 50),
-            ]);
+            if (!$product) {
+                // Si no existe, crearlo
+                $product = Product::create($productData);
+                
+                // Añadir inventario inicial en las bodegas
+                Inventory::create([
+                    'product_id' => $product->id,
+                    'warehouse_id' => 1, // Bodega Central
+                    'quantity' => rand(50, 100),
+                ]);
+                
+                Inventory::create([
+                    'product_id' => $product->id,
+                    'warehouse_id' => 2, // Bodega Sur
+                    'quantity' => rand(20, 50),
+                ]);
+                
+                $this->command->info("Producto creado: {$product->name}");
+            } else {
+                $this->command->warn("Producto ya existe: {$product->name}");
+            }
         }
     }
 }

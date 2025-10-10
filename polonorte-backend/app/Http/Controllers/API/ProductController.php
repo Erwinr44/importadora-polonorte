@@ -6,9 +6,43 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
+    /**
+     * Unidades de medida permitidas
+     */
+    private $allowedUnitTypes = [
+        'unidad',
+        'caja',
+        'paca',
+        'paquete',
+        'bulto',
+        'saco',
+        'barril',
+        'lote'
+    ];
+
+    private $allowedWeightUnits = [
+        'libras',
+        'kilogramos',
+        'gramos',
+        'onzas',
+        'toneladas'
+    ];
+
+    /**
+     * Obtener las unidades de medida disponibles
+     */
+    public function getUnitTypes()
+    {
+        return response()->json([
+            'unit_types' => $this->allowedUnitTypes,
+            'weight_units' => $this->allowedWeightUnits
+        ]);
+    }
+
     /**
      * Display a listing of the products.
      */
@@ -16,12 +50,17 @@ class ProductController extends Controller
     {
         $products = Product::with(['inventory.warehouse'])->get();
         
-        // Transformar los datos para incluir el stock total y por bodega
         $products = $products->map(function ($product) {
             $totalStock = $product->inventory->sum('quantity');
             $stockByWarehouse = $product->inventory->mapWithKeys(function ($item) {
                 return [$item->warehouse->name => $item->quantity];
             });
+            
+            // Calcular peso total si aplica
+            $totalWeight = null;
+            if ($product->unit_weight && $product->weight_unit) {
+                $totalWeight = $product->calculateTotalWeight($totalStock);
+            }
             
             return [
                 'id' => $product->id,
@@ -30,9 +69,14 @@ class ProductController extends Controller
                 'description' => $product->description,
                 'category' => $product->category,
                 'price' => $product->price,
+                'unit_type' => $product->unit_type,
+                'unit_weight' => $product->unit_weight,
+                'weight_unit' => $product->weight_unit,
+                'unit_description' => $product->unit_description,
                 'min_stock' => $product->min_stock,
                 'active' => $product->active,
                 'total_stock' => $totalStock,
+                'total_weight' => $totalWeight,
                 'stock_by_warehouse' => $stockByWarehouse,
                 'created_at' => $product->created_at,
                 'updated_at' => $product->updated_at,
@@ -53,6 +97,14 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'category' => 'nullable|string|max:100',
             'price' => 'required|numeric|min:0',
+            'unit_type' => ['required', 'string', Rule::in($this->allowedUnitTypes)],
+            'unit_weight' => 'nullable|numeric|min:0',
+            'weight_unit' => [
+                'nullable',
+                'string',
+                Rule::in($this->allowedWeightUnits),
+                'required_with:unit_weight'
+            ],
             'min_stock' => 'required|integer|min:0',
         ]);
 
@@ -84,11 +136,16 @@ class ProductController extends Controller
             ], 404);
         }
         
-        // Transformar los datos para incluir el stock total y por bodega
         $totalStock = $product->inventory->sum('quantity');
         $stockByWarehouse = $product->inventory->mapWithKeys(function ($item) {
             return [$item->warehouse->name => $item->quantity];
         });
+        
+        // Calcular peso total si aplica
+        $totalWeight = null;
+        if ($product->unit_weight && $product->weight_unit) {
+            $totalWeight = $product->calculateTotalWeight($totalStock);
+        }
         
         $productData = [
             'id' => $product->id,
@@ -97,9 +154,14 @@ class ProductController extends Controller
             'description' => $product->description,
             'category' => $product->category,
             'price' => $product->price,
+            'unit_type' => $product->unit_type,
+            'unit_weight' => $product->unit_weight,
+            'weight_unit' => $product->weight_unit,
+            'unit_description' => $product->unit_description,
             'min_stock' => $product->min_stock,
             'active' => $product->active,
             'total_stock' => $totalStock,
+            'total_weight' => $totalWeight,
             'stock_by_warehouse' => $stockByWarehouse,
             'created_at' => $product->created_at,
             'updated_at' => $product->updated_at,
@@ -127,6 +189,14 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'category' => 'nullable|string|max:100',
             'price' => 'sometimes|required|numeric|min:0',
+            'unit_type' => ['sometimes', 'required', 'string', Rule::in($this->allowedUnitTypes)],
+            'unit_weight' => 'nullable|numeric|min:0',
+            'weight_unit' => [
+                'nullable',
+                'string',
+                Rule::in($this->allowedWeightUnits),
+                'required_with:unit_weight'
+            ],
             'min_stock' => 'sometimes|required|integer|min:0',
             'active' => 'sometimes|required|boolean',
         ]);
@@ -160,20 +230,9 @@ class ProductController extends Controller
         }
         
         // Verificar si el producto tiene inventario
-        $hasInventory = $product->inventory()->sum('quantity') > 0;
-        
-        if ($hasInventory) {
+        if ($product->inventory()->exists()) {
             return response()->json([
-                'message' => 'No se puede eliminar el producto porque tiene existencias en inventario.'
-            ], 400);
-        }
-        
-        // Verificar si el producto está en alguna orden
-        $hasOrders = $product->orders()->exists();
-        
-        if ($hasOrders) {
-            return response()->json([
-                'message' => 'No se puede eliminar el producto porque está asociado a pedidos.'
+                'message' => 'No se puede eliminar el producto porque tiene inventario asociado'
             ], 400);
         }
         
