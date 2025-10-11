@@ -10,8 +10,8 @@ export default function DashboardLayout({ children }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const isProvider = user?.role === 'Proveedor';
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -20,14 +20,7 @@ export default function DashboardLayout({ children }) {
   }, [loading, user, router]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando...</p>
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
   }
 
   if (!user) {
@@ -49,7 +42,6 @@ export default function DashboardLayout({ children }) {
     if (pathname === '/dashboard/users') return 'Gestión de Usuarios';
     if (pathname === '/dashboard/users/new') return 'Nuevo Usuario';
     if (pathname.startsWith('/dashboard/users/') && pathname !== '/dashboard/users/new') return 'Editar Usuario';
-    if (pathname === '/dashboard/settings') return 'Configuración';
     return 'Dashboard';
   };
 
@@ -60,7 +52,6 @@ export default function DashboardLayout({ children }) {
     { name: 'Furgones', href: '/dashboard/containers', icon: '🚢', show: true },
     { name: 'Pedidos', href: '/dashboard/orders', icon: '📝', show: !isProvider },
     { name: 'Usuarios', href: '/dashboard/users', icon: '👥', show: user?.role === 'Admin' },
-    { name: 'Configuración', href: '/dashboard/settings', icon: '⚙️', show: user?.role === 'Admin' },
   ];
 
   return (
@@ -115,7 +106,7 @@ export default function DashboardLayout({ children }) {
                   onClick={() => setSidebarOpen(false)}
                   className={`
                     flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200
-                    ${pathname === item.href
+                    ${pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
                       ? 'bg-blue-50 text-blue-700 shadow-sm'
                       : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
                     }
@@ -153,7 +144,7 @@ export default function DashboardLayout({ children }) {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
+      <div className="flex-1 flex flex-col min-h-screen lg:ml-64">
         {/* Header */}
         <header className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center justify-between h-20 px-6">
@@ -189,14 +180,14 @@ export default function DashboardLayout({ children }) {
         </header>
 
         {/* Page Content */}
-        <main className="p-6 lg:p-8">
+        <main className="flex-1 p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-gray-200 bg-white mt-12">
+        <footer className="border-t border-gray-200 bg-white mt-auto">
           <div className="max-w-7xl mx-auto px-6 py-6">
             <p className="text-center text-sm text-gray-500">
               © {new Date().getFullYear()} Importadora Polonorte S.A. - Todos los derechos reservados
