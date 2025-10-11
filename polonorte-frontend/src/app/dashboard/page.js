@@ -16,8 +16,6 @@ export default function DashboardPage() {
       
       try {
         setLoading(true);
-        
-        // ⚡ UNA SOLA llamada al API que trae TODO
         const response = await axios.get('/dashboard/stats');
         setStats(response.data);
         

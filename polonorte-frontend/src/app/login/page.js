@@ -67,7 +67,6 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {/* Mensaje de error */}
             {error && (
               <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
                 <div className="flex items-center">
@@ -79,9 +78,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Formulario */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email */}
               <div>
                 <label 
                   className="block text-sm font-medium text-gray-700 mb-2" 
@@ -108,7 +105,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Contraseña */}
               <div>
                 <label 
                   className="block text-sm font-medium text-gray-700 mb-2" 
@@ -135,7 +131,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Botón de inicio de sesión */}
               <button
                 type="submit"
                 disabled={loading}
@@ -155,7 +150,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Footer del formulario */}
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
                 Sistema de Gestión - Importadora Polonorte
@@ -163,23 +157,19 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Texto adicional */}
           <p className="mt-8 text-center text-sm text-gray-600">
             Gestión de Inventarios y Seguimiento de Envíos
           </p>
         </div>
       </div>
 
-      {/* Lado Derecho - Logo y Branding (solo visible en pantallas grandes) */}
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-600 to-blue-800 items-center justify-center p-12 relative overflow-hidden">
-        {/* Decoración de fondo */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 -left-4 w-72 h-72 bg-white rounded-full mix-blend-multiply filter blur-xl"></div>
           <div className="absolute top-0 -right-4 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl"></div>
           <div className="absolute -bottom-8 left-20 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl"></div>
         </div>
 
-        {/* Contenido */}
         <div className="relative z-10 text-center">
           <div className="w-80 h-80 mx-auto mb-8 relative">
             <Image
