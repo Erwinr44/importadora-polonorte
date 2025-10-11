@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\Config;
 
 class SettingController extends Controller
 {
-    /**
-     * Obtener todas las configuraciones por categoría
-     */
     public function index(Request $request)
     {
         $category = $request->query('category');
@@ -45,9 +42,6 @@ class SettingController extends Controller
         return response()->json($settings);
     }
 
-    /**
-     * Actualizar una configuración
-     */
     public function update(Request $request, $key)
     {
         $setting = SystemSetting::where('key', $key)->first();
@@ -78,9 +72,6 @@ class SettingController extends Controller
         ]);
     }
 
-    /**
-     * Actualizar múltiples configuraciones a la vez
-     */
     public function updateBulk(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -109,9 +100,6 @@ class SettingController extends Controller
         ]);
     }
 
-    /**
-     * Probar conexión SMTP
-     */
     public function testEmail(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -148,9 +136,6 @@ class SettingController extends Controller
         }
     }
 
-    /**
-     * Probar conexión WhatsApp (Twilio)
-     */
     public function testWhatsApp(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -200,9 +185,6 @@ class SettingController extends Controller
         }
     }
 
-    /**
-     * Configurar Mail con settings de BD
-     */
     private function configureMailFromSettings()
     {
         Config::set('mail.mailers.smtp.host', SystemSetting::getValue('mail_host'));

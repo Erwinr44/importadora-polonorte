@@ -13,9 +13,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
-    /**
-     * Reporte de Ventas
-     */
     public function salesReport(Request $request)
     {
         $dateFrom = $request->input('date_from', now()->startOfMonth());
@@ -85,9 +82,6 @@ class ReportController extends Controller
         ]);
     }
 
-    /**
-     * Reporte de Furgones
-     */
     public function containersReport(Request $request)
     {
         $dateFrom = $request->input('date_from', now()->startOfMonth());
@@ -146,9 +140,6 @@ class ReportController extends Controller
         ]);
     }
 
-    /**
-     * Reporte de Inventario
-     */
     public function inventoryReport(Request $request)
     {
         // Stock actual por bodega
@@ -213,9 +204,6 @@ class ReportController extends Controller
         ]);
     }
 
-    /**
-     * Reporte de Clientes
-     */
     public function customersReport(Request $request)
     {
         $dateFrom = $request->input('date_from', now()->startOfMonth());
@@ -265,9 +253,7 @@ class ReportController extends Controller
         ]);
     }
 
-    /**
-     * Exportar reporte de ventas a PDF
-     */
+
     public function exportSalesPDF(Request $request)
     {
         $data = $this->salesReport($request)->getData();
@@ -277,9 +263,6 @@ class ReportController extends Controller
         return $pdf->download('reporte-ventas-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    /**
-     * Exportar reporte de furgones a PDF
-     */
     public function exportContainersPDF(Request $request)
     {
         $data = $this->containersReport($request)->getData();
@@ -289,9 +272,6 @@ class ReportController extends Controller
         return $pdf->download('reporte-furgones-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    /**
-     * Exportar reporte de inventario a PDF
-     */
     public function exportInventoryPDF(Request $request)
     {
         $data = $this->inventoryReport($request)->getData();
@@ -301,9 +281,6 @@ class ReportController extends Controller
         return $pdf->download('reporte-inventario-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    /**
-     * Exportar reporte de clientes a PDF
-     */
     public function exportCustomersPDF(Request $request)
     {
         $data = $this->customersReport($request)->getData();

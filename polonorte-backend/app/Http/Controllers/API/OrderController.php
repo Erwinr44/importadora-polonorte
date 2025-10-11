@@ -14,18 +14,12 @@ use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
-    /**
-     * Display a listing of orders.
-     */
     public function index()
     {
         $orders = Order::with(['trackingHistory', 'createdBy', 'products'])->get();
         return response()->json($orders);
     }
 
-    /**
-     * Store a newly created order.
-     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -45,8 +39,6 @@ class OrderController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-
-        // Iniciar transacción para asegurar consistencia
         DB::beginTransaction();
         
         try {
@@ -138,9 +130,6 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Display the specified order.
-     */
     public function show(string $id)
     {
         $order = Order::with(['trackingHistory.updatedBy', 'products', 'createdBy'])->find($id);
@@ -154,9 +143,6 @@ class OrderController extends Controller
         return response()->json($order);
     }
 
-    /**
-     * Update order status and handle inventory restoration if cancelled
-     */
     public function updateStatus(Request $request, string $id)
     {
         $order = Order::with('products')->find($id);

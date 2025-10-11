@@ -16,9 +16,6 @@ class NotificationController extends Controller
         $this->notificationService = $notificationService;
     }
 
-    /**
-     * Listar todas las notificaciones con filtros
-     */
     public function index(Request $request)
     {
         $query = Notification::query()->orderBy('created_at', 'desc');
@@ -28,7 +25,7 @@ class NotificationController extends Controller
             $query->where('type', $request->type);
         }
 
-        // Filtrar por canal
+
         if ($request->has('channel')) {
             $query->where('channel', $request->channel);
         }
@@ -51,9 +48,6 @@ class NotificationController extends Controller
         return response()->json($notifications);
     }
 
-    /**
-     * Obtener una notificación específica
-     */
     public function show($id)
     {
         $notification = Notification::find($id);
@@ -67,9 +61,6 @@ class NotificationController extends Controller
         return response()->json($notification);
     }
 
-    /**
-     * Reintentar una notificación fallida
-     */
     public function retry($id)
     {
         $notification = Notification::find($id);
@@ -113,9 +104,6 @@ class NotificationController extends Controller
         }
     }
 
-    /**
-     * Reintentar todas las notificaciones fallidas
-     */
     public function retryAll()
     {
         $this->notificationService->retryFailed();
@@ -125,9 +113,6 @@ class NotificationController extends Controller
         ]);
     }
 
-    /**
-     * Estadísticas de notificaciones
-     */
     public function stats()
     {
         $stats = [

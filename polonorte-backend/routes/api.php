@@ -10,16 +10,12 @@ use App\Http\Controllers\API\OrderController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\DashboardController;
 
-// Ruta de prueba (para verificar que la API funciona)
 Route::get('/test', function () {
     return response()->json(['message' => 'API funcionando correctamente']);
 });
 
-// ============================================
-// RUTAS PÚBLICAS - Rate Limit: 10 por minuto
-// ============================================
+
 Route::middleware('throttle:10,1')->group(function () {
-    // Login - limitado para prevenir fuerza bruta
     Route::post('/login', [AuthController::class, 'login']);
     
     // Seguimiento público (para clientes externos)
@@ -27,9 +23,6 @@ Route::middleware('throttle:10,1')->group(function () {
     Route::get('/containers/track/{trackingCode}', [ContainerController::class, 'trackByCode']);
 });
 
-// ============================================
-// RUTAS PROTEGIDAS - Rate Limit: 120 por minuto
-// ============================================
 Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
     
     // Rutas de autenticación
@@ -101,7 +94,6 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::get('/roles', [UserController::class, 'getRoles']);
     });
 
-    // Ruta para obtener proveedores - solo Admin y Operador
     Route::middleware('role:Admin,Operador')->group(function () {
         Route::get('/container-suppliers', [ContainerController::class, 'getSuppliers']);
     });

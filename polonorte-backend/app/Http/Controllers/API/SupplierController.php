@@ -11,18 +11,12 @@ use Illuminate\Support\Facades\Validator;
 
 class SupplierController extends Controller
 {
-    /**
-     * Display a listing of suppliers.
-     */
     public function index()
     {
         $suppliers = Supplier::withCount(['users', 'containers'])->get();
         return response()->json($suppliers);
     }
 
-    /**
-     * Store a newly created supplier.
-     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -51,9 +45,6 @@ class SupplierController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified supplier.
-     */
     public function show(string $id)
     {
         $supplier = Supplier::with(['users', 'containers'])->find($id);
@@ -67,9 +58,6 @@ class SupplierController extends Controller
         return response()->json($supplier);
     }
 
-    /**
-     * Update the specified supplier.
-     */
     public function update(Request $request, string $id)
     {
         $supplier = Supplier::find($id);
@@ -106,9 +94,6 @@ class SupplierController extends Controller
         ]);
     }
 
-    /**
-     * Remove the specified supplier.
-     */
     public function destroy(string $id)
     {
         $supplier = Supplier::find($id);
@@ -141,9 +126,6 @@ class SupplierController extends Controller
         ]);
     }
 
-    /**
-     * Toggle supplier status.
-     */
     public function toggleStatus(string $id)
     {
         $supplier = Supplier::find($id);

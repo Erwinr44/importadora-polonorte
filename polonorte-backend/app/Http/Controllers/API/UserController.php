@@ -13,18 +13,12 @@ use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of users.
-     */
     public function index()
     {
         $users = User::with(['role', 'supplier'])->get();
         return response()->json($users);
     }
 
-    /**
-     * Store a newly created user.
-     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -60,9 +54,6 @@ class UserController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified user.
-     */
     public function show(string $id)
     {
         $user = User::with(['role', 'supplier'])->find($id);
@@ -76,9 +67,6 @@ class UserController extends Controller
         return response()->json($user);
     }
 
-    /**
-     * Update the specified user.
-     */
     public function update(Request $request, string $id)
     {
         $user = User::find($id);
@@ -144,9 +132,6 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Remove the specified user from storage.
-     */
     public function destroy(string $id)
     {
         $user = User::find($id);
@@ -202,9 +187,6 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Toggle user active status.
-     */
     public function toggleStatus(string $id)
     {
         $user = User::find($id);
@@ -237,18 +219,12 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Get all available roles.
-     */
     public function getRoles()
     {
         $roles = Role::select('id', 'name', 'description')->get();
         return response()->json($roles);
     }
 
-    /**
-     * Get all available suppliers.
-     */
     public function getSuppliers()
     {
         $suppliers = Supplier::where('active', true)
@@ -257,9 +233,6 @@ class UserController extends Controller
         return response()->json($suppliers);
     }
 
-    /**
-     * Reset user password (Admin only) - OPCIÓN A: Sistema Simple
-     */
     public function resetPassword(Request $request, string $id)
     {
         $user = User::find($id);
@@ -291,9 +264,6 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Generate temporary password for user (Admin only)
-     */
     public function generateTempPassword(string $id)
     {
         $user = User::find($id);
@@ -319,9 +289,6 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * Change own password (for logged-in users)
-     */
     public function changeOwnPassword(Request $request)
     {
         $validator = Validator::make($request->all(), [

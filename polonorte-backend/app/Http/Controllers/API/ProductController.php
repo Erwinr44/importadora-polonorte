@@ -10,9 +10,6 @@ use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
-    /**
-     * Unidades de medida permitidas
-     */
     private $allowedUnitTypes = [
         'unidad',
         'caja',
@@ -32,9 +29,6 @@ class ProductController extends Controller
         'toneladas'
     ];
 
-    /**
-     * Obtener las unidades de medida disponibles
-     */
     public function getUnitTypes()
     {
         return response()->json([
@@ -43,9 +37,6 @@ class ProductController extends Controller
         ]);
     }
 
-    /**
-     * Display a listing of the products.
-     */
     public function index()
     {
         $products = Product::with(['inventory.warehouse'])->get();
@@ -56,7 +47,6 @@ class ProductController extends Controller
                 return [$item->warehouse->name => $item->quantity];
             });
             
-            // Calcular peso total si aplica
             $totalWeight = null;
             if ($product->unit_weight && $product->weight_unit) {
                 $totalWeight = $product->calculateTotalWeight($totalStock);
@@ -86,9 +76,6 @@ class ProductController extends Controller
         return response()->json($products);
     }
 
-    /**
-     * Store a newly created product.
-     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -123,9 +110,6 @@ class ProductController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified product.
-     */
     public function show(string $id)
     {
         $product = Product::with(['inventory.warehouse'])->find($id);
@@ -170,9 +154,6 @@ class ProductController extends Controller
         return response()->json($productData);
     }
 
-    /**
-     * Update the specified product.
-     */
     public function update(Request $request, string $id)
     {
         $product = Product::find($id);
@@ -216,9 +197,6 @@ class ProductController extends Controller
         ]);
     }
 
-    /**
-     * Remove the specified product.
-     */
     public function destroy(string $id)
     {
         $product = Product::find($id);

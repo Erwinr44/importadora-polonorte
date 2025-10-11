@@ -26,7 +26,7 @@ class Container extends Model
         'actual_arrival_date' => 'date',
     ];
 
-   // Relación con proveedor (ACTUALIZAR)
+   // Relación con proveedor
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);

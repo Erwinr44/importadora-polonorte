@@ -13,15 +13,11 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    /**
-     * Login con protección contra fuerza bruta
-     */
     public function login(Request $request)
     {
-        // Clave única para rate limiting por IP
+
         $key = 'login-attempts:' . $request->ip();
         
-        // Verificar si ha excedido intentos (5 intentos cada 1 minuto)
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
             
@@ -50,8 +46,7 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
 
         if (!Auth::attempt($credentials)) {
-            // Incrementar contador de intentos fallidos
-            RateLimiter::hit($key, 60); // 60 segundos de bloqueo
+            RateLimiter::hit($key, 60);
             
             return response()->json([
                 'message' => 'Credenciales incorrectas'
@@ -66,14 +61,12 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // Limpiar intentos fallidos después de login exitoso
         RateLimiter::clear($key);
 
-        // Crear token con tiempo de expiración
         $token = $user->createToken(
             'auth_token',
             ['*'],
-            now()->addDays(7) // Token expira en 7 días
+            now()->addDays(7) 
         )->plainTextToken;
 
         return response()->json([
@@ -89,9 +82,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Obtener usuario autenticado
-     */
     public function user(Request $request)
     {
         $user = $request->user()->load('role');
@@ -105,12 +95,8 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Cerrar sesión (revocar token actual)
-     */
     public function logout(Request $request)
     {
-        // Revocar solo el token actual
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
@@ -118,12 +104,8 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Cerrar todas las sesiones del usuario
-     */
     public function logoutAll(Request $request)
     {
-        // Revocar todos los tokens del usuario
         $request->user()->tokens()->delete();
 
         return response()->json([

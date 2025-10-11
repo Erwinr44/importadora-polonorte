@@ -22,7 +22,6 @@ class InventoryController extends Controller
 
     public function getLowStockProducts()
     {
-        // Subconsulta para obtener el stock total por producto
         $productsWithTotalStock = DB::table('products')
             ->leftJoin('inventory', 'products.id', '=', 'inventory.product_id')
             ->select(
@@ -51,7 +50,6 @@ class InventoryController extends Controller
             ]);
         }
 
-        // Obtener detalles de inventario por bodega para cada producto con stock bajo
         $productsWithDetails = [];
         
         foreach ($lowStockProducts as $product) {
@@ -73,7 +71,7 @@ class InventoryController extends Controller
                 'category' => $product->category,
                 'min_stock' => $product->min_stock,
                 'total_stock' => $product->total_stock,
-                'deficit' => $product->min_stock - $product->total_stock, // Cuánto falta para llegar al mínimo
+                'deficit' => $product->min_stock - $product->total_stock,
                 'inventory_by_warehouse' => $inventoryDetails,
                 'alert_level' => $this->getAlertLevel($product->total_stock, $product->min_stock)
             ];
@@ -86,21 +84,19 @@ class InventoryController extends Controller
         ]);
     }
 
-    /**
-     * 🔧 MÉTODO AUXILIAR: Determinar nivel de alerta basado en stock
-     */
+
     private function getAlertLevel($currentStock, $minStock)
     {
         $percentage = ($currentStock / $minStock) * 100;
         
         if ($currentStock == 0) {
-            return 'critical'; // Sin stock
+            return 'critical';
         } elseif ($percentage <= 25) {
-            return 'high'; // Stock muy bajo (≤25% del mínimo)
+            return 'high'; 
         } elseif ($percentage <= 50) {
-            return 'medium'; // Stock bajo (≤50% del mínimo)
+            return 'medium';
         } else {
-            return 'low'; // Stock ligeramente bajo
+            return 'low';
         }
     }
 
@@ -154,15 +150,13 @@ class InventoryController extends Controller
             ], 422);
         }
 
-        // Iniciar transacción para asegurar consistencia
         DB::beginTransaction();
         
         try {
             $inventory = Inventory::where('product_id', $request->product_id)
                 ->where('warehouse_id', $request->warehouse_id)
                 ->first();
-            
-            // Si no existe el registro en inventario, crearlo
+
             if (!$inventory && ($request->operation == 'add' || $request->operation == 'set')) {
                 $inventory = new Inventory([
                     'product_id' => $request->product_id,
@@ -173,7 +167,6 @@ class InventoryController extends Controller
                 throw new \Exception('No existe inventario para este producto en la bodega especificada.');
             }
             
-            // Realizar la operación correspondiente
             switch ($request->operation) {
                 case 'add':
                     $inventory->quantity += $request->quantity;
@@ -231,7 +224,6 @@ class InventoryController extends Controller
             ], 422);
         }
 
-        // Iniciar transacción para asegurar consistencia
         DB::beginTransaction();
         
         try {

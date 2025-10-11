@@ -77,10 +77,9 @@ class ContainerController extends Controller
             ], 422);
         }
 
-        // Generar un código de seguimiento único
+        // Generar un código de seguimiento
         $trackingCode = 'CONT-' . strtoupper(Str::random(8));
         
-        // Verificar que el código sea único
         while (Container::where('tracking_code', $trackingCode)->exists()) {
             $trackingCode = 'CONT-' . strtoupper(Str::random(8));
         }
@@ -106,7 +105,7 @@ class ContainerController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
-        // Disparar evento de contenedor registrado
+        // Evento de contenedor registrado
         event(new \App\Events\ContainerRegistered($container));
 
         return response()->json([
@@ -161,7 +160,6 @@ class ContainerController extends Controller
             ], 422);
         }
 
-        // Verificar permisos si cambia proveedor
         if ($request->has('supplier_id') && $request->supplier_id != $container->supplier_id) {
             $supplier = Supplier::find($request->supplier_id);
             if (!$supplier || !$supplier->active) {
@@ -189,7 +187,7 @@ class ContainerController extends Controller
             ], 404);
         }
 
-        // Si es proveedor, verificar que puede actualizar ESTE contenedor
+        // verificar contenedores que puede actualizar proveedor
         if ($request->user()->role->name === 'Proveedor') {
             if (!$request->user()->supplier_id || $container->supplier_id != $request->user()->supplier_id) {
                 return response()->json([
@@ -217,7 +215,7 @@ class ContainerController extends Controller
         }
         $container->save();
 
-        // Si el furgón llegó a destino, disparar evento
+        // evento de llegada
         if ($request->status === 'Recibido') {
             event(new \App\Events\ContainerArrived($container));
         }
@@ -248,7 +246,6 @@ class ContainerController extends Controller
             ], 404);
         }
         
-        // Formatear la respuesta para mostrar solo información relevante
         $trackingData = [
             'tracking_code' => $container->tracking_code,
             'supplier' => $container->supplier->company_name,
@@ -270,9 +267,6 @@ class ContainerController extends Controller
         return response()->json($trackingData);
     }
 
-    /**
-     * Get suppliers for container creation (Admin and Operador only)
-     */
     public function getSuppliers()
     {
         $suppliers = Supplier::where('active', true)
