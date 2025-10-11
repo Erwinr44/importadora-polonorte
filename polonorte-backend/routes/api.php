@@ -8,27 +8,37 @@ use App\Http\Controllers\API\WarehouseController;
 use App\Http\Controllers\API\ContainerController;
 use App\Http\Controllers\API\OrderController;
 use App\Http\Controllers\API\UserController;
+use App\Http\Controllers\API\DashboardController;
 
 // Ruta de prueba (para verificar que la API funciona)
 Route::get('/test', function () {
     return response()->json(['message' => 'API funcionando correctamente']);
 });
 
-// Rutas públicas (no requieren autenticación)
-Route::post('/login', [AuthController::class, 'login']);
+// ============================================
+// RUTAS PÚBLICAS - Rate Limit: 10 por minuto
+// ============================================
+Route::middleware('throttle:10,1')->group(function () {
+    // Login - limitado para prevenir fuerza bruta
+    Route::post('/login', [AuthController::class, 'login']);
+    
+    // Seguimiento público (para clientes externos)
+    Route::get('/orders/track/{trackingCode}', [OrderController::class, 'trackByCode']);
+    Route::get('/containers/track/{trackingCode}', [ContainerController::class, 'trackByCode']);
+});
 
-// Ruta pública para obtener tipos de unidades (útil para formularios)
-Route::get('/unit-types', [ProductController::class, 'getUnitTypes']);
-
-// Rutas públicas para seguimiento
-Route::get('/orders/track/{trackingCode}', [OrderController::class, 'trackByCode']);
-Route::get('/containers/track/{trackingCode}', [ContainerController::class, 'trackByCode']);
-
-// Rutas protegidas (requieren autenticación)
-Route::middleware('auth:sanctum')->group(function () {
+// ============================================
+// RUTAS PROTEGIDAS - Rate Limit: 120 por minuto
+// ============================================
+Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
+    
     // Rutas de autenticación
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    
+    // Dashboard optimizado
+    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
+    Route::get('/dashboard/low-stock', [DashboardController::class, 'getLowStockProducts']);
     
     // Rutas para productos - solo Admin y Operador
     Route::middleware('role:Admin,Operador')->group(function () {
@@ -37,6 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/products/{id}', [ProductController::class, 'show']);
         Route::put('/products/{id}', [ProductController::class, 'update']);
         Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+        Route::get('/unit-types', [ProductController::class, 'getUnitTypes']);
     });
     
     // Rutas para bodegas - solo Admin y Operador
@@ -60,12 +71,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas para furgones
     Route::get('/containers', [ContainerController::class, 'index']);
     Route::get('/containers/{id}', [ContainerController::class, 'show']);
+    
     // Permitir a los proveedores crear furgones
     Route::post('/containers', [ContainerController::class, 'store']);
+    
     // Solo Admin y Operador pueden editar furgones
     Route::middleware('role:Admin,Operador')->group(function () {
         Route::put('/containers/{id}', [ContainerController::class, 'update']);
     });
+    
     // Todos los roles autenticados pueden actualizar estado
     Route::post('/containers/{id}/update-status', [ContainerController::class, 'updateStatus']);
     
