@@ -15,16 +15,16 @@ class Product extends Model
         'description', 
         'category', 
         'price',
-        'unit_type',      // NUEVO
-        'unit_weight',    // NUEVO
-        'weight_unit',    // NUEVO
+        'unit_type',    
+        'unit_weight',  
+        'weight_unit',  
         'min_stock', 
         'active'
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
-        'unit_weight' => 'decimal:2',  // NUEVO
+        'unit_weight' => 'decimal:2', 
         'min_stock' => 'integer',
         'active' => 'boolean',
     ];
@@ -51,7 +51,7 @@ class Product extends Model
             ->withTimestamps();
     }
 
-    // NUEVO: Método para obtener la descripción completa de la unidad
+    // Método para obtener la descripción completa de la unidad
     public function getUnitDescriptionAttribute()
     {
         if ($this->unit_weight && $this->weight_unit) {
@@ -60,7 +60,7 @@ class Product extends Model
         return $this->unit_type;
     }
 
-    // NUEVO: Método para calcular el peso total basado en cantidad
+    // Método para calcular el peso total basado en cantidad
     public function calculateTotalWeight($quantity)
     {
         if ($this->unit_weight) {

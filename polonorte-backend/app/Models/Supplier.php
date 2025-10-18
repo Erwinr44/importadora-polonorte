@@ -17,22 +17,22 @@ class Supplier extends Model
         'address',
         'country',
         'tax_id',
-        'active'
+        'active',
     ];
 
     protected $casts = [
         'active' => 'boolean',
     ];
 
-    // Relación con usuarios (empleados del proveedor)
+    // Relación con usuarios proveedores
     public function users()
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(User::class, 'supplier_id');
     }
 
     // Relación con contenedores
     public function containers()
     {
-        return $this->hasMany(Container::class);
+        return $this->hasMany(Container::class, 'supplier_id');
     }
 }

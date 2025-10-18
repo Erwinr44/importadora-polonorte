@@ -9,6 +9,7 @@ use App\Http\Controllers\API\ContainerController;
 use App\Http\Controllers\API\OrderController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\DashboardController;
+use App\Http\Controllers\API\SupplierController;
 
 Route::get('/test', function () {
     return response()->json(['message' => 'API funcionando correctamente']);
@@ -51,6 +52,15 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::put('/warehouses/{id}', [WarehouseController::class, 'update']);
         Route::delete('/warehouses/{id}', [WarehouseController::class, 'destroy']);
     });
+
+    // Rutas para pedidos - solo Admin y Operador
+Route::middleware('role:Admin,Operador')->group(function () {
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::post('/orders', [OrderController::class, 'store']);
+    Route::get('/orders/{id}', [OrderController::class, 'show']);
+    Route::post('/orders/{id}/update-status', [OrderController::class, 'updateStatus']);
+    Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']); // ⬅️ AGREGAR ESTA LÍNEA
+});
     
     // Rutas para inventario - solo Admin y Operador
     Route::middleware('role:Admin,Operador')->group(function () {
@@ -90,11 +100,35 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::post('/users', [UserController::class, 'store']);
         Route::get('/users/{id}', [UserController::class, 'show']);
         Route::put('/users/{id}', [UserController::class, 'update']);
+        Route::delete('/users/{id}', [UserController::class, 'destroy']);
         Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
         Route::get('/roles', [UserController::class, 'getRoles']);
     });
 
+    // Rutas para proveedores (solo Admin)
+    Route::middleware('role:Admin')->group(function () {
+        Route::get('/suppliers', [SupplierController::class, 'index']);
+        Route::post('/suppliers', [SupplierController::class, 'store']);
+        Route::get('/suppliers/{id}', [SupplierController::class, 'show']);
+        Route::put('/suppliers/{id}', [SupplierController::class, 'update']);
+        Route::post('/suppliers/{id}/toggle-status', [SupplierController::class, 'toggleStatus']);
+        Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
+    });
+
     Route::middleware('role:Admin,Operador')->group(function () {
         Route::get('/container-suppliers', [ContainerController::class, 'getSuppliers']);
+    });
+
+    // Ruta para obtener suppliers (para dropdown en usuarios)
+        Route::middleware('role:Admin')->group(function () {
+            Route::get('/suppliers', [SupplierController::class, 'index']);
+        });
+
+    // Rutas de configuración (solo Admin)
+    Route::middleware('role:Admin')->group(function () {
+        Route::get('/settings', [App\Http\Controllers\API\SettingController::class, 'index']);
+        Route::post('/settings/bulk', [App\Http\Controllers\API\SettingController::class, 'updateBulk']);
+        Route::post('/settings/test-email', [App\Http\Controllers\API\SettingController::class, 'testEmail']);
+        Route::post('/settings/test-whatsapp', [App\Http\Controllers\API\SettingController::class, 'testWhatsApp']);
     });
 });

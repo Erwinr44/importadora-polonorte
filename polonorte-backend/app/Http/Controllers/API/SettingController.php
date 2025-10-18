@@ -21,20 +21,13 @@ class SettingController extends Controller
             $settings = SystemSetting::all();
         }
         
-        // Para valores sensibles, no enviar el valor real al frontend
+        // Para valores sensibles, indicar que existe pero no enviar el valor
         $settings = $settings->map(function ($setting) {
             if ($setting->is_sensitive && !empty($setting->value)) {
-                return [
-                    'id' => $setting->id,
-                    'key' => $setting->key,
-                    'value' => '••••••••', // Ocultar valor
-                    'has_value' => true,
-                    'category' => $setting->category,
-                    'type' => $setting->type,
-                    'label' => $setting->label,
-                    'description' => $setting->description,
-                    'is_sensitive' => $setting->is_sensitive,
-                ];
+                $settingArray = $setting->toArray();
+                $settingArray['value'] = ''; // Enviar vacío en lugar de puntos
+                $settingArray['has_value'] = true; // Indicar que tiene valor guardado
+                return $settingArray;
             }
             return $setting;
         });
@@ -77,7 +70,7 @@ class SettingController extends Controller
         $validator = Validator::make($request->all(), [
             'settings' => 'required|array',
             'settings.*.key' => 'required|string',
-            'settings.*.value' => 'required',
+            'settings.*.value' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -88,11 +81,39 @@ class SettingController extends Controller
         }
 
         foreach ($request->settings as $settingData) {
-            $setting = SystemSetting::where('key', $settingData['key'])->first();
-            if ($setting) {
-                $setting->value = $settingData['value'];
-                $setting->save();
+            // Determinar la categoría según el prefijo de la key
+            $category = 'general';
+            if (str_starts_with($settingData['key'], 'mail_')) {
+                $category = 'email';
+            } elseif (str_starts_with($settingData['key'], 'twilio_')) {
+                $category = 'whatsapp';
+            } elseif (str_starts_with($settingData['key'], 'notify_')) {
+                $category = 'notifications';
             }
+
+            // Determinar si es sensible
+            $is_sensitive = in_array($settingData['key'], [
+                'mail_password', 
+                'twilio_token'
+            ]);
+
+            // Si el valor está vacío y es sensible, no actualizar (mantener el existente)
+            if ($is_sensitive && empty($settingData['value'])) {
+                continue;
+            }
+
+            // Crear o actualizar
+            SystemSetting::updateOrCreate(
+                ['key' => $settingData['key']],
+                [
+                    'value' => $settingData['value'] ?? '',
+                    'category' => $category,
+                    'type' => 'text',
+                    'label' => ucwords(str_replace('_', ' ', $settingData['key'])),
+                    'description' => null,
+                    'is_sensitive' => $is_sensitive
+                ]
+            );
         }
 
         return response()->json([

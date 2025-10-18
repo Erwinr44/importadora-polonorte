@@ -15,7 +15,6 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-
         $key = 'login-attempts:' . $request->ip();
         
         if (RateLimiter::tooManyAttempts($key, 5)) {
@@ -53,7 +52,8 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $user = User::with('role')->where('email', $request->email)->firstOrFail();
+        // Cargar relaciones: role y supplier
+        $user = User::with(['role', 'supplier'])->where('email', $request->email)->firstOrFail();
 
         if (!$user->active) {
             return response()->json([
@@ -77,6 +77,13 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role->name,
+                'role_id' => $user->role_id,
+                'supplier_id' => $user->supplier_id, // ← AGREGADO
+                'supplier' => $user->supplier ? [
+                    'id' => $user->supplier->id,
+                    'company_name' => $user->supplier->company_name,
+                ] : null, // ← AGREGADO
+                'phone' => $user->phone,
                 'active' => $user->active,
             ]
         ]);
@@ -84,13 +91,21 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
-        $user = $request->user()->load('role');
+        // Cargar relaciones: role y supplier
+        $user = $request->user()->load(['role', 'supplier']);
         
         return response()->json([
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role->name,
+            'role_id' => $user->role_id,
+            'supplier_id' => $user->supplier_id, // ← AGREGADO
+            'supplier' => $user->supplier ? [
+                'id' => $user->supplier->id,
+                'company_name' => $user->supplier->company_name,
+            ] : null, // ← AGREGADO
+            'phone' => $user->phone,
             'active' => $user->active,
         ]);
     }

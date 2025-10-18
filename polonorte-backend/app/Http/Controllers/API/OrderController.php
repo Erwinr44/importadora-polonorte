@@ -10,16 +10,23 @@ use App\Models\Inventory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
+    /**
+     * Display a listing of orders.
+     */
     public function index()
     {
         $orders = Order::with(['trackingHistory', 'createdBy', 'products'])->get();
         return response()->json($orders);
     }
 
+    /**
+     * Store a newly created order.
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -39,6 +46,7 @@ class OrderController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+        
         DB::beginTransaction();
         
         try {
@@ -106,17 +114,12 @@ class OrderController extends Controller
             
             DB::commit();
 
+            // 🔥 DISPARAR EVENTO DE PEDIDO CREADO
             event(new \App\Events\OrderCreated($order));
 
             return response()->json([
                 'message' => 'Pedido creado exitosamente',
-                'order' => $order,
-                'tracking_code' => $trackingCode
-            ], 201);
-            
-            return response()->json([
-                'message' => 'Pedido creado exitosamente',
-                'order' => $order,
+                'order' => $order->load(['trackingHistory', 'products']),
                 'tracking_code' => $trackingCode
             ], 201);
             
@@ -130,6 +133,9 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Display the specified order.
+     */
     public function show(string $id)
     {
         $order = Order::with(['trackingHistory.updatedBy', 'products', 'createdBy'])->find($id);
@@ -143,6 +149,9 @@ class OrderController extends Controller
         return response()->json($order);
     }
 
+    /**
+     * Update the order status.
+     */
     public function updateStatus(Request $request, string $id)
     {
         $order = Order::with('products')->find($id);
@@ -186,6 +195,7 @@ class OrderController extends Controller
                 }
             }
             
+            // Si se reactiva un pedido cancelado, reducir inventario nuevamente
             if ($oldStatus === 'Cancelado' && $newStatus !== 'Cancelado') {
                 // Verificar que hay suficiente stock para reactivar
                 foreach ($order->products as $product) {
@@ -208,22 +218,32 @@ class OrderController extends Controller
                 }
             }
             
-            $oldStatus = $order->status;
-            $order->status = $request->status;
+            // Actualizar el estado
+            $order->status = $newStatus;
             $order->save();
-
-            // Disparar evento de cambio de estado
-            event(new \App\Events\OrderStatusChanged($order, $oldStatus, $request->status));
 
             // Crear tracking
             OrderTracking::create([
                 'order_id' => $order->id,
-                'status' => $request->status,
+                'status' => $newStatus,
                 'notes' => $request->notes ?? '',
                 'updated_by' => $request->user()->id,
             ]);
-            
+
             DB::commit();
+
+            // 🔥 DEBUG: Verificar antes de disparar evento
+            Log::info('🔵 ANTES de disparar evento OrderStatusChanged', [
+                'order_id' => $order->id,
+                'tracking_code' => $order->tracking_code,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus
+            ]);
+
+            // 🔥 DISPARAR EVENTO DE CAMBIO DE ESTADO
+            event(new \App\Events\OrderStatusChanged($order, $oldStatus, $newStatus));
+
+            Log::info('🟢 DESPUÉS de disparar evento OrderStatusChanged');
             
             return response()->json([
                 'message' => 'Estado del pedido actualizado exitosamente',
@@ -240,6 +260,9 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Cancel an order (helper method that calls updateStatus).
+     */
     public function cancel(Request $request, string $id)
     {
         $cancelRequest = new Request([
@@ -252,7 +275,9 @@ class OrderController extends Controller
         return $this->updateStatus($cancelRequest, $id);
     }
 
-
+    /**
+     * Track an order by its tracking code (public endpoint).
+     */
     public function trackByCode(string $trackingCode)
     {
         $order = Order::with('trackingHistory')->where('tracking_code', $trackingCode)->first();

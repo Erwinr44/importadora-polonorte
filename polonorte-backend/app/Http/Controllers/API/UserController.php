@@ -38,6 +38,23 @@ class UserController extends Controller
             ], 422);
         }
 
+        // Validar que si el rol es Proveedor, debe tener supplier_id
+        $role = Role::find($request->role_id);
+        if ($role && $role->name === 'Proveedor' && !$request->supplier_id) {
+            return response()->json([
+                'message' => 'Validation error',
+                'errors' => ['supplier_id' => ['El campo proveedor es requerido para usuarios con rol Proveedor']]
+            ], 422);
+        }
+
+        // Validar que supplier_id solo se asigne si el rol es Proveedor
+        if ($request->supplier_id && $role && $role->name !== 'Proveedor') {
+            return response()->json([
+                'message' => 'Validation error',
+                'errors' => ['supplier_id' => ['Solo los usuarios con rol Proveedor pueden tener una empresa asignada']]
+            ], 422);
+        }
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -95,6 +112,27 @@ class UserController extends Controller
             ], 422);
         }
 
+        // Determinar el rol (puede ser el nuevo o el actual)
+        $roleId = $request->has('role_id') ? $request->role_id : $user->role_id;
+        $role = Role::find($roleId);
+
+        // Validar que si el rol es Proveedor, debe tener supplier_id
+        if ($role && $role->name === 'Proveedor') {
+            $supplierId = $request->has('supplier_id') ? $request->supplier_id : $user->supplier_id;
+            
+            if (!$supplierId) {
+                return response()->json([
+                    'message' => 'Validation error',
+                    'errors' => ['supplier_id' => ['El campo proveedor es requerido para usuarios con rol Proveedor']]
+                ], 422);
+            }
+        }
+
+        // Si cambia el rol a uno que NO es Proveedor, limpiar supplier_id
+        if ($request->has('role_id') && $role && $role->name !== 'Proveedor') {
+            $user->supplier_id = null;
+        }
+
         // Actualizar solo campos proporcionados
         if ($request->has('name')) {
             $user->name = $request->name;
@@ -112,7 +150,8 @@ class UserController extends Controller
             $user->role_id = $request->role_id;
         }
         
-        if ($request->has('supplier_id')) {
+        // Solo actualizar supplier_id si el rol es Proveedor
+        if ($request->has('supplier_id') && $role && $role->name === 'Proveedor') {
             $user->supplier_id = $request->supplier_id;
         }
         
@@ -134,57 +173,67 @@ class UserController extends Controller
 
     public function destroy(string $id)
     {
-        $user = User::find($id);
-        
-        if (!$user) {
+        try {
+            $user = User::findOrFail($id);
+            
+            // Validación 1: Prevenir que el usuario se elimine a sí mismo
+            if ($user->id == auth()->id()) {
+                return response()->json([
+                    'message' => 'No puedes eliminar tu propio usuario'
+                ], 403);
+            }
+            
+            // Validación 2: No permitir eliminar al único administrador activo
+            if ($user->role_id == 1 && $user->active) {
+                $activeAdmins = User::where('role_id', 1)
+                    ->where('active', true)
+                    ->count();
+                    
+                if ($activeAdmins <= 1) {
+                    return response()->json([
+                        'message' => 'No se puede eliminar al único administrador activo del sistema'
+                    ], 403);
+                }
+            }
+            
+            // Validación 3: Verificar si tiene datos relacionados
+            $hasContainers = $user->containers()->count() > 0;
+            $hasOrders = $user->createdOrders()->count() > 0;
+            $hasContainerUpdates = $user->containerTrackingUpdates()->count() > 0;
+            $hasOrderUpdates = $user->orderTrackingUpdates()->count() > 0;
+            
+            if ($hasContainers || $hasOrders || $hasContainerUpdates || $hasOrderUpdates) {
+                return response()->json([
+                    'message' => 'No se puede eliminar el usuario porque tiene registros asociados',
+                    'details' => [
+                        'containers' => $hasContainers ? $user->containers()->count() : 0,
+                        'orders' => $hasOrders ? $user->createdOrders()->count() : 0,
+                        'tracking_updates' => ($hasContainerUpdates ? $user->containerTrackingUpdates()->count() : 0) + 
+                                             ($hasOrderUpdates ? $user->orderTrackingUpdates()->count() : 0)
+                    ],
+                    'suggestion' => 'Considera desactivar el usuario en lugar de eliminarlo usando el botón de estado'
+                ], 409);
+            }
+            
+            // Si pasa todas las validaciones, eliminar
+            $userName = $user->name;
+            $user->delete();
+            
+            return response()->json([
+                'message' => "Usuario '{$userName}' eliminado exitosamente"
+            ]);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'message' => 'Usuario no encontrado'
             ], 404);
-        }
-        
-        // No permitir eliminar al único administrador activo
-        if ($user->role_id == 1 && $user->active) {
-            $activeAdmins = User::where('role_id', 1)
-                ->where('active', true)
-                ->count();
-                
-            if ($activeAdmins <= 1) {
-                return response()->json([
-                    'message' => 'No se puede eliminar al único administrador activo'
-                ], 400);
-            }
-        }
-        
-        // Verificar si el usuario tiene pedidos asociados como creador
-        $hasOrders = $user->where('id', $id)->whereHas('orders', function($query) {
-            $query->where('created_by', $id);
-        })->exists();
-        
-        if ($hasOrders) {
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar usuario: ' . $e->getMessage());
             return response()->json([
-                'message' => 'No se puede eliminar este usuario porque tiene pedidos asociados. Puedes desactivarlo en su lugar.'
-            ], 400);
+                'message' => 'Error al eliminar el usuario',
+                'error' => config('app.debug') ? $e->getMessage() : 'Error interno del servidor'
+            ], 500);
         }
-        
-        // Verificar si es proveedor con contenedores
-        if ($user->role->name === 'Proveedor') {
-            $hasContainers = $user->where('id', $id)->whereHas('containers', function($query) use ($id) {
-                $query->where('created_by', $id);
-            })->exists();
-            
-            if ($hasContainers) {
-                return response()->json([
-                    'message' => 'No se puede eliminar este proveedor porque tiene contenedores asociados. Puedes desactivarlo en su lugar.'
-                ], 400);
-            }
-        }
-        
-        $userName = $user->name;
-        $user->delete();
-        
-        return response()->json([
-            'message' => "Usuario '{$userName}' eliminado exitosamente"
-        ]);
     }
 
     public function toggleStatus(string $id)
@@ -205,7 +254,7 @@ class UserController extends Controller
                 
             if ($activeAdmins <= 1) {
                 return response()->json([
-                    'message' => 'No se puede desactivar al único administrador activo'
+                    'message' => 'No se puede desactivar al único administrador activo del sistema'
                 ], 400);
             }
         }
@@ -223,14 +272,6 @@ class UserController extends Controller
     {
         $roles = Role::select('id', 'name', 'description')->get();
         return response()->json($roles);
-    }
-
-    public function getSuppliers()
-    {
-        $suppliers = Supplier::where('active', true)
-            ->select('id', 'company_name', 'contact_person')
-            ->get();
-        return response()->json($suppliers);
     }
 
     public function resetPassword(Request $request, string $id)

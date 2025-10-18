@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
-    /**
-     * Enviar notificación (detecta automáticamente el canal)
-     */
+
     public function send($type, $recipient, $message, $subject = null, $metadata = [])
     {
         // Verificar si el tipo de notificación está habilitado
@@ -53,9 +51,6 @@ class NotificationService
         }
     }
 
-    /**
-     * Enviar email
-     */
     private function sendEmail($to, $subject, $message)
     {
         // Configurar mail con settings de BD
@@ -66,9 +61,7 @@ class NotificationService
         });
     }
 
-    /**
-     * Enviar WhatsApp usando Twilio
-     */
+
     private function sendWhatsApp($to, $message)
     {
         $sid = SystemSetting::getValue('twilio_sid');
@@ -81,8 +74,11 @@ class NotificationService
 
         $twilio = new \Twilio\Rest\Client($sid, $token);
 
+        // Asegurarse de que el número destino tenga el prefijo whatsapp:
+        $toNumber = (strpos($to, 'whatsapp:') === 0) ? $to : "whatsapp:{$to}";
+
         $twilio->messages->create(
-            "whatsapp:{$to}",
+            $toNumber,
             [
                 "from" => $from,
                 "body" => $message
@@ -90,9 +86,7 @@ class NotificationService
         );
     }
 
-    /**
-     * Verificar si una notificación está habilitada
-     */
+
     private function isNotificationEnabled($type)
     {
         $settingKey = 'notify_' . $type;
@@ -100,18 +94,10 @@ class NotificationService
         return $value === 'true' || $value === true;
     }
 
-    /**
-     * Determinar el canal según el tipo de notificación
-     */
+
     private function getChannelForType($type)
     {
-        $whatsappTypes = ['order_created', 'order_status_changed'];
-        
-        if (in_array($type, $whatsappTypes)) {
-            return 'whatsapp';
-        }
-        
-        return 'email';
+        return 'whatsapp';
     }
 
     /**

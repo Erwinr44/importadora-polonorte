@@ -17,7 +17,8 @@ class Container extends Model
         'departure_date', 
         'expected_arrival_date', 
         'actual_arrival_date', 
-        'status'
+        'status',
+        'created_by'
     ];
 
     protected $casts = [
@@ -26,13 +27,14 @@ class Container extends Model
         'actual_arrival_date' => 'date',
     ];
 
-   // Relación con proveedor
+    // Relación con proveedor
     public function supplier()
     {
-        return $this->belongsTo(Supplier::class);
+        return $this->belongsTo(Supplier::class, 'supplier_id');
     }
 
-    public function createdBy()
+    // Relación con el usuario que lo creó
+    public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
