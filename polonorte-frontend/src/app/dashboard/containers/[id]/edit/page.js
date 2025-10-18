@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from '@/lib/axios';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function EditContainerPage({ params }) {
-  const { id } = params;
+  const { id } = use(params);
   const { user } = useAuth();
   const router = useRouter();
   const [suppliers, setSuppliers] = useState([]);
