@@ -17,12 +17,12 @@ class SendOrderStatusNotification
 
     public function handle(OrderStatusChanged $event)
     {
-        Log::info('🟡 Listener OrderStatusChanged ejecutándose');
+        Log::info(' Listener OrderStatusChanged ejecutándose');
 
         $order = $event->order;
         $newStatus = $event->newStatus;
 
-        Log::info('🟡 Datos del pedido', [
+        Log::info(' Datos del pedido', [
             'order_id' => $order->id,
             'tracking_code' => $order->tracking_code,
             'customer_phone' => $order->customer_phone,
@@ -35,15 +35,15 @@ class SendOrderStatusNotification
         })->first();
 
         if ($admin && $admin->phone) {
-            Log::info('🟡 Admin encontrado', ['admin_phone' => $admin->phone]);
+            Log::info(' Admin encontrado', ['admin_phone' => $admin->phone]);
 
-            $message = "📋 *Cambio de Estado de Pedido*\n\n";
+            $message = " *Cambio de Estado de Pedido*\n\n";
             $message .= "Pedido: {$order->tracking_code}\n";
             $message .= "Cliente: {$order->customer_name}\n";
             $message .= "Nuevo estado: {$newStatus}\n\n";
             $message .= "- Importadora Polonorte";
 
-            Log::info('🟡 Enviando notificación de cambio de estado');
+            Log::info('Enviando notificación de cambio de estado');
 
             $result = $this->notificationService->send(
                 'order_status_changed',
@@ -53,9 +53,9 @@ class SendOrderStatusNotification
                 ['order_id' => $order->id, 'new_status' => $newStatus]
             );
 
-            Log::info('🟡 Resultado de envío', ['result' => $result]);
+            Log::info('Resultado de envío', ['result' => $result]);
         } else {
-            Log::warning('❌ Admin no encontrado o sin teléfono');
+            Log::warning('Admin no encontrado o sin teléfono');
         }
     }
 }

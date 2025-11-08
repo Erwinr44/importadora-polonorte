@@ -25,8 +25,8 @@ class SettingController extends Controller
         $settings = $settings->map(function ($setting) {
             if ($setting->is_sensitive && !empty($setting->value)) {
                 $settingArray = $setting->toArray();
-                $settingArray['value'] = ''; // Enviar vacío en lugar de puntos
-                $settingArray['has_value'] = true; // Indicar que tiene valor guardado
+                $settingArray['value'] = ''; 
+                $settingArray['has_value'] = true; 
                 return $settingArray;
             }
             return $setting;

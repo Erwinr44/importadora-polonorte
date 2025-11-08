@@ -16,9 +16,7 @@ class ContainerController extends Controller
 {
     public function index(Request $request)
     {
-        // Si el usuario es proveedor, mostrar solo los furgones de su empresa
         if ($request->user()->role->name === 'Proveedor') {
-            // Verificar que el usuario tenga una empresa asignada
             if (!$request->user()->supplier_id) {
                 return response()->json([
                     'message' => 'Usuario proveedor sin empresa asignada'
@@ -100,12 +98,12 @@ class ContainerController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
-        Log::info('🔵 ANTES de disparar evento ContainerRegistered', ['container_id' => $container->id]);
+        Log::info(' ANTES de disparar evento ContainerRegistered', ['container_id' => $container->id]);
         
-        // 🔥 DISPARAR EVENTO DE REGISTRO DE FURGÓN
+
         event(new \App\Events\ContainerRegistered($container));
 
-        Log::info('🟢 DESPUÉS de disparar evento ContainerRegistered', ['container_id' => $container->id]);
+        Log::info(' DESPUÉS de disparar evento ContainerRegistered', ['container_id' => $container->id]);
 
         return response()->json([
             'message' => 'Furgón registrado exitosamente',
@@ -143,8 +141,7 @@ class ContainerController extends Controller
                 'message' => 'Furgón no encontrado'
             ], 404);
         }
-        
-        // Verificar permisos (solo Admin y Operador pueden editar)
+
         if (!in_array($request->user()->role->name, ['Admin', 'Operador'])) {
             return response()->json([
                 'message' => 'No tiene permiso para editar este furgón'
@@ -167,7 +164,7 @@ class ContainerController extends Controller
             ], 422);
         }
         
-        // Si se cambia el proveedor, verificar que la empresa existe y está activa
+
         if ($request->has('supplier_id') && $request->supplier_id != $container->supplier_id) {
             $supplier = Supplier::find($request->supplier_id);
             if (!$supplier || !$supplier->active) {
@@ -191,7 +188,7 @@ class ContainerController extends Controller
         // Guardar cambios
         $container->save();
         
-        // Si cambió el status, registrar en el tracking
+
         if ($request->has('status') && $request->status !== $container->getOriginal('status')) {
             ContainerTracking::create([
                 'container_id' => $container->id,
@@ -218,7 +215,7 @@ class ContainerController extends Controller
             ], 404);
         }
         
-        // Verificar permisos (proveedor solo puede actualizar furgones de su empresa)
+
         if ($request->user()->role->name === 'Proveedor' && $container->supplier_id !== $request->user()->supplier_id) {
             return response()->json([
                 'message' => 'No tiene permiso para actualizar este furgón'
@@ -259,8 +256,7 @@ class ContainerController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
-        // 🔥 DISPARAR EVENTO DE CAMBIO DE ESTADO
-        // Si el estado cambió a "Recibido", disparar evento de llegada
+
         if ($request->status === 'Recibido' && $oldStatus !== 'Recibido') {
             event(new \App\Events\ContainerArrived($container));
         }
@@ -284,7 +280,7 @@ class ContainerController extends Controller
             ], 404);
         }
         
-        // Formatear la respuesta para mostrar solo información relevante
+
         $trackingData = [
             'tracking_code' => $container->tracking_code,
             'supplier' => $container->supplier->company_name ?? 'N/A',
@@ -309,7 +305,6 @@ class ContainerController extends Controller
 
     public function getSuppliers()
     {
-        // Ahora retorna las EMPRESAS (tabla suppliers) en lugar de usuarios
         $suppliers = Supplier::where('active', true)
             ->select('id', 'company_name as name', 'email', 'phone', 'country')
             ->get();

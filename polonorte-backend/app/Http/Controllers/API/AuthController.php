@@ -52,7 +52,7 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Cargar relaciones: role y supplier
+
         $user = User::with(['role', 'supplier'])->where('email', $request->email)->firstOrFail();
 
         if (!$user->active) {
@@ -78,11 +78,11 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'role' => $user->role->name,
                 'role_id' => $user->role_id,
-                'supplier_id' => $user->supplier_id, // ← AGREGADO
+                'supplier_id' => $user->supplier_id, 
                 'supplier' => $user->supplier ? [
                     'id' => $user->supplier->id,
                     'company_name' => $user->supplier->company_name,
-                ] : null, // ← AGREGADO
+                ] : null, 
                 'phone' => $user->phone,
                 'active' => $user->active,
             ]
@@ -91,7 +91,7 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
-        // Cargar relaciones: role y supplier
+
         $user = $request->user()->load(['role', 'supplier']);
         
         return response()->json([
@@ -100,11 +100,11 @@ class AuthController extends Controller
             'email' => $user->email,
             'role' => $user->role->name,
             'role_id' => $user->role_id,
-            'supplier_id' => $user->supplier_id, // ← AGREGADO
+            'supplier_id' => $user->supplier_id,
             'supplier' => $user->supplier ? [
                 'id' => $user->supplier->id,
                 'company_name' => $user->supplier->company_name,
-            ] : null, // ← AGREGADO
+            ] : null,
             'phone' => $user->phone,
             'active' => $user->active,
         ]);

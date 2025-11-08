@@ -15,18 +15,13 @@ use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
-    /**
-     * Display a listing of orders.
-     */
+
     public function index()
     {
         $orders = Order::with(['trackingHistory', 'createdBy', 'products'])->get();
         return response()->json($orders);
     }
 
-    /**
-     * Store a newly created order.
-     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -195,7 +190,7 @@ class OrderController extends Controller
                 }
             }
             
-            // Si se reactiva un pedido cancelado, reducir inventario nuevamente
+
             if ($oldStatus === 'Cancelado' && $newStatus !== 'Cancelado') {
                 // Verificar que hay suficiente stock para reactivar
                 foreach ($order->products as $product) {
@@ -222,7 +217,6 @@ class OrderController extends Controller
             $order->status = $newStatus;
             $order->save();
 
-            // Crear tracking
             OrderTracking::create([
                 'order_id' => $order->id,
                 'status' => $newStatus,
@@ -232,18 +226,16 @@ class OrderController extends Controller
 
             DB::commit();
 
-            // 🔥 DEBUG: Verificar antes de disparar evento
-            Log::info('🔵 ANTES de disparar evento OrderStatusChanged', [
+            Log::info('ANTES de disparar evento OrderStatusChanged', [
                 'order_id' => $order->id,
                 'tracking_code' => $order->tracking_code,
                 'old_status' => $oldStatus,
                 'new_status' => $newStatus
             ]);
 
-            // 🔥 DISPARAR EVENTO DE CAMBIO DE ESTADO
             event(new \App\Events\OrderStatusChanged($order, $oldStatus, $newStatus));
 
-            Log::info('🟢 DESPUÉS de disparar evento OrderStatusChanged');
+            Log::info(' DESPUÉS de disparar evento OrderStatusChanged');
             
             return response()->json([
                 'message' => 'Estado del pedido actualizado exitosamente',
@@ -260,9 +252,6 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Cancel an order (helper method that calls updateStatus).
-     */
     public function cancel(Request $request, string $id)
     {
         $cancelRequest = new Request([
@@ -275,9 +264,7 @@ class OrderController extends Controller
         return $this->updateStatus($cancelRequest, $id);
     }
 
-    /**
-     * Track an order by its tracking code (public endpoint).
-     */
+
     public function trackByCode(string $trackingCode)
     {
         $order = Order::with('trackingHistory')->where('tracking_code', $trackingCode)->first();

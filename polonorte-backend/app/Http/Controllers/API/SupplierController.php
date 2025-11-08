@@ -1,7 +1,5 @@
 <?php
 
-// Crear: app/Http/Controllers/API/SupplierController.php
-
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;

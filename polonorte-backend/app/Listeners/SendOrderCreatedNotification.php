@@ -18,7 +18,7 @@ class SendOrderCreatedNotification
 
     public function handle(OrderCreated $event)
     {
-        Log::info('🟡 Listener de OrderCreated ejecutándose');
+        Log::info('Listener de OrderCreated ejecutándose');
         
         $order = $event->order;
 
@@ -27,7 +27,7 @@ class SendOrderCreatedNotification
             $query->where('name', 'Admin');
         })->first();
 
-        Log::info('🟡 Admin encontrado para pedido', ['admin_phone' => $admin ? $admin->phone : 'NO ENCONTRADO']);
+        Log::info('Admin encontrado para pedido', ['admin_phone' => $admin ? $admin->phone : 'NO ENCONTRADO']);
 
         if ($admin && $admin->phone) {
             $message = "🛒 *Nuevo Pedido Creado*\n\n";
@@ -38,7 +38,7 @@ class SendOrderCreatedNotification
             $message .= "📋 Estado: {$order->status}\n\n";
             $message .= "- Importadora Polonorte";
 
-            Log::info('🟡 Enviando notificación de pedido creado');
+            Log::info('Enviando notificación de pedido creado');
 
             $result = $this->notificationService->send(
                 'order_created',
@@ -48,9 +48,9 @@ class SendOrderCreatedNotification
                 ['order_id' => $order->id]
             );
 
-            Log::info('🟡 Resultado de envío', ['result' => $result]);
+            Log::info('Resultado de envío', ['result' => $result]);
         } else {
-            Log::warning('❌ No se pudo enviar notificación: Admin sin teléfono');
+            Log::warning('No se pudo enviar notificación: Admin sin teléfono');
         }
     }
 }

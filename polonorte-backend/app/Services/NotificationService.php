@@ -114,9 +114,7 @@ class NotificationService
         Config::set('mail.from.name', SystemSetting::getValue('mail_from_name'));
     }
 
-    /**
-     * Reintentar notificaciones fallidas
-     */
+
     public function retryFailed()
     {
         $failedNotifications = Notification::failed()->get();
