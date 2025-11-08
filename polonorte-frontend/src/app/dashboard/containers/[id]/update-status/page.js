@@ -58,7 +58,6 @@ export default function UpdateContainerStatusPage({ params }) {
       [name]: value,
     }));
     
-    // Limpiar error específico cuando el usuario corrige el campo
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,

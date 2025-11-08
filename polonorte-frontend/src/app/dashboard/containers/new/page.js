@@ -31,7 +31,6 @@ export default function NewContainerPage() {
         console.log('🔍 Supplier ID:', user.supplier_id);
         console.log('🔍 Role:', user.role);
         
-        // CORRECCIÓN: No necesitamos hacer llamada a la API
         // El proveedor ya tiene su información en el objeto user
         setFormData(prev => ({
           ...prev,

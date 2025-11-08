@@ -30,7 +30,7 @@ export default function ProductsPage() {
     description: '',
     category: '',
     price: '',
-    unit_type: 'unidad',
+    unit_type: 'caja',
     unit_weight: '',
     weight_unit: '',
     min_stock: '',
@@ -108,6 +108,15 @@ export default function ProductsPage() {
     return 'Normal';
   };
 
+  // Función helper para formatear unidades con pluralización
+  const formatUnit = (unitType, quantity) => {
+    if (!unitType) return 'unidades';
+    const unit = unitType.toLowerCase();
+    if (quantity === 1) return unit;
+    if (unit.endsWith('z')) return unit.slice(0, -1) + 'ces';
+    return unit + 's';
+  };
+
   const resetForm = () => {
     setProductForm({
       name: '',
@@ -115,7 +124,7 @@ export default function ProductsPage() {
       description: '',
       category: '',
       price: '',
-      unit_type: 'unidad',
+      unit_type: 'caja',
       unit_weight: '',
       weight_unit: '',
       min_stock: '',
@@ -240,7 +249,7 @@ export default function ProductsPage() {
     const hasStock = product.total_stock > 0;
     
     if (hasStock) {
-      alert(`No se puede eliminar el producto "${product.name}" porque tiene ${product.total_stock} unidades en inventario.`);
+      alert(`No se puede eliminar el producto "${product.name}" porque tiene ${product.total_stock} ${formatUnit(product.unit_type, product.total_stock)} en inventario.`);
       return;
     }
     
@@ -443,7 +452,7 @@ export default function ProductsPage() {
                   Categoría
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Unidad
+                  Tipo Empaque
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Precio
@@ -488,8 +497,8 @@ export default function ProductsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {product.unit_type ? product.unit_type.charAt(0).toUpperCase() + product.unit_type.slice(1) : 'Unidad'}
+                    <div className="text-sm font-medium text-gray-900">
+                      {product.unit_type ? product.unit_type.charAt(0).toUpperCase() + product.unit_type.slice(1) : 'Caja'}
                     </div>
                     {product.unit_weight && product.weight_unit && (
                       <div className="text-xs text-gray-500">
@@ -509,8 +518,7 @@ export default function ProductsPage() {
                           {product.total_stock}
                         </span>
                         <span className="text-xs text-gray-500 ml-1">
-                          {product.unit_type || 'unidad'}
-                          {product.total_stock !== 1 ? 's' : ''}
+                          {formatUnit(product.unit_type, product.total_stock)}
                         </span>
                       </div>
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -523,10 +531,10 @@ export default function ProductsPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     {product.total_weight ? (
                       <div className="text-sm font-medium text-blue-600">
-                        {parseFloat(product.total_weight).toFixed(2)} {product.weight_unit}
+                        {parseFloat(product.total_weight).toLocaleString()} {product.weight_unit}
                       </div>
                     ) : (
-                      <span className="text-sm text-gray-400">-</span>
+                      <span className="text-sm text-gray-400 italic">No especificado</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -558,7 +566,7 @@ export default function ProductsPage() {
                           description: product.description || '',
                           category: product.category || '',
                           price: product.price.toString(),
-                          unit_type: product.unit_type || 'unidad',
+                          unit_type: product.unit_type || 'caja',
                           unit_weight: product.unit_weight || '',
                           weight_unit: product.weight_unit || '',
                           min_stock: product.min_stock.toString(),
@@ -622,122 +630,493 @@ export default function ProductsPage() {
           )}
         </div>
       </div>
+
 {/* Modal Crear */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Nuevo Producto</h3>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Nuevo Producto</h3>
+            <form onSubmit={handleCreate} className="space-y-5">
+              
+              {/* Información Básica */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre <span className="text-red-500">*</span></label>
-                  <input type="text" value={productForm.name} onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Pacas de ropa" required />
-                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre del producto <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={productForm.name}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ej: Pacas de ropa"
+                    required
+                  />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Código <span className="text-red-500">*</span></label>
-                  <input type="text" value={productForm.code} onChange={(e) => setProductForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: PACA001" required />
-                  {errors.code && <p className="text-red-500 text-xs mt-1">{errors.code[0]}</p>}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Código único <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={productForm.code}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ej: PACA001"
+                    required
+                  />
+                  {errors.code && <p className="text-red-500 text-xs mt-1">{errors.code}</p>}
                 </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea value={productForm.description} onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Descripción del producto..." />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descripción
+                </label>
+                <textarea
+                  value={productForm.description}
+                  onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Descripción del producto..."
+                />
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                  <input type="text" value={productForm.category} onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Ropa" list="categories-list" />
-                  <datalist id="categories-list">{categories.map(category => (<option key={category} value={category} />))}</datalist>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Categoría
+                  </label>
+                  <input
+                    type="text"
+                    value={productForm.category}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ej: Ropa"
+                    list="categories-list"
+                  />
+                  <datalist id="categories-list">
+                    {categories.map(category => (
+                      <option key={category} value={category} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio (Q) <span className="text-red-500">*</span></label>
-                  <input type="number" step="0.01" min="0" value={productForm.price} onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.00" required />
-                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price[0]}</p>}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Precio de venta <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500">Q</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productForm.price}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))}
+                      className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Precio por {productForm.unit_type || 'empaque'}</p>
+                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Mínimo <span className="text-red-500">*</span></label>
-                  <input type="number" min="0" value={productForm.min_stock} onChange={(e) => setProductForm(prev => ({ ...prev, min_stock: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" required />
-                  {errors.min_stock && <p className="text-red-500 text-xs mt-1">{errors.min_stock[0]}</p>}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Stock mínimo <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={productForm.min_stock}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, min_stock: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="10"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">En {formatUnit(productForm.unit_type, 2)}</p>
+                  {errors.min_stock && <p className="text-red-500 text-xs mt-1">{errors.min_stock}</p>}
                 </div>
               </div>
+
+              {/* Sección: Tipo de Empaque */}
               <div className="border-t pt-4">
-                <h4 className="text-md font-medium text-gray-900 mb-3">📦 Unidades de Medida</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="mr-2">📦</span>
+                  Tipo de Empaque
+                </h4>
+                <div className="bg-blue-50 p-3 rounded-md mb-3">
+                  <p className="text-sm text-blue-800">
+                    <strong>¿Cómo se maneja este producto?</strong>
+                    <br/>
+                    Selecciona en qué tipo de empaque recibes y vendes este producto.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de empaque <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={productForm.unit_type}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, unit_type: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    {unitTypes.map(type => (
+                      <option key={type} value={type}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    ¿En qué unidad se cuenta? Ejemplo: cajas, pacas, bultos, etc.
+                  </p>
+                </div>
+              </div>
+
+              {/* Sección: Peso (Opcional) */}
+              <div className="border-t pt-4">
+                <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="mr-2">⚖️</span>
+                  Información de Peso (Opcional)
+                </h4>
+                <div className="bg-yellow-50 p-3 rounded-md mb-3 border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    💡 <strong>Este dato es solo informativo.</strong>
+                    <br/>
+                    Llénalo si quieres ver el peso total en inventario. No es obligatorio.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Unidad <span className="text-red-500">*</span></label>
-                    <select value={productForm.unit_type} onChange={(e) => setProductForm(prev => ({ ...prev, unit_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                      {unitTypes.map(type => (<option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>))}
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">¿En qué unidad se cuenta?</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Peso aproximado por empaque
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productForm.unit_weight}
+                      onChange={(e) => setProductForm(prev => ({ 
+                        ...prev, 
+                        unit_weight: e.target.value 
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="1000"
+                    />
+                    {errors.unit_weight && <p className="text-red-500 text-xs mt-1">{errors.unit_weight}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Peso/Medida por Unidad</label>
-                    <input type="number" step="0.01" min="0" value={productForm.unit_weight} onChange={(e) => setProductForm(prev => ({ ...prev, unit_weight: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1000" />
-                    {errors.unit_weight && <p className="text-red-500 text-xs mt-1">{errors.unit_weight[0]}</p>}
-                    <p className="text-xs text-gray-500 mt-1">Opcional</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Peso</label>
-                    <select value={productForm.weight_unit} onChange={(e) => setProductForm(prev => ({ ...prev, weight_unit: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={!productForm.unit_weight}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Unidad de peso
+                    </label>
+                    <select
+                      value={productForm.weight_unit}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, weight_unit: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!productForm.unit_weight}
+                    >
                       <option value="">Seleccionar...</option>
-                      {weightUnits.map(unit => (<option key={unit} value={unit}>{unit.charAt(0).toUpperCase() + unit.slice(1)}</option>))}
+                      {weightUnits.map(unit => (
+                        <option key={unit} value={unit}>
+                          {unit.charAt(0).toUpperCase() + unit.slice(1)}
+                        </option>
+                      ))}
                     </select>
-                    {errors.weight_unit && <p className="text-red-500 text-xs mt-1">{errors.weight_unit[0]}</p>}
-                    <p className="text-xs text-gray-500 mt-1">Requerido si especificó peso</p>
+                    {errors.weight_unit && <p className="text-red-500 text-xs mt-1">{errors.weight_unit}</p>}
                   </div>
                 </div>
-                {productForm.unit_type && (
-                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-sm text-blue-800"><strong>Ejemplo:</strong> Si registra 10 en inventario = 10 {productForm.unit_type}s
-                      {productForm.unit_weight && productForm.weight_unit && (<span> (cada {productForm.unit_type} pesa {productForm.unit_weight} {productForm.weight_unit})<span className="block mt-1">Peso total: <strong>{(parseFloat(productForm.unit_weight || 0) * 10).toFixed(2)} {productForm.weight_unit}</strong></span></span>)}
-                    </p>
-                  </div>
-                )}
               </div>
+
+              {/* Preview Dinámico */}
+              {productForm.unit_type && (
+                <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                  <h5 className="text-sm font-semibold text-gray-900 mb-2">
+                    📊 Vista previa
+                  </h5>
+                  <p className="text-sm text-gray-700">
+                    <strong>Si registras 10 en inventario:</strong>
+                    <br/>
+                    • Cantidad: 10 {formatUnit(productForm.unit_type, 10)}
+                    {productForm.unit_weight && productForm.weight_unit && (
+                      <>
+                        <br/>
+                        • Peso total: <strong className="text-blue-600">
+                          {(parseFloat(productForm.unit_weight) * 10).toLocaleString()} {productForm.weight_unit}
+                        </strong>
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
+
               <div>
-                <label className="flex items-center space-x-2">
-                  <input type="checkbox" checked={productForm.active} onChange={(e) => setProductForm(prev => ({ ...prev, active: e.target.checked }))} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={productForm.active}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, active: e.target.checked }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
                   <span className="text-sm text-gray-700">Producto activo</span>
                 </label>
               </div>
-              <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={() => { setShowCreateModal(false); resetForm(); }} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Crear Producto</button>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    resetForm();
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Crear Producto
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Modal Editar - Usa EXACTAMENTE la misma estructura que Crear */}
+      {/* Modal Editar */}
       {showEditModal && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Editar: {selectedProduct.name}</h3>
-            <form onSubmit={handleUpdate} className="space-y-4">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Editar: {selectedProduct.name}
+            </h3>
+            <form onSubmit={handleUpdate} className="space-y-5">
+              
+              {/* Información Básica */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre <span className="text-red-500">*</span></label><input type="text" value={productForm.name} onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Código <span className="text-red-500">*</span></label><input type="text" value={productForm.code} onChange={(e) => setProductForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
-              </div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label><textarea value={productForm.description} onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label><input type="text" value={productForm.category} onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" list="categories-list-edit" /><datalist id="categories-list-edit">{categories.map(category => (<option key={category} value={category} />))}</datalist></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Precio (Q) <span className="text-red-500">*</span></label><input type="number" step="0.01" min="0" value={productForm.price} onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Stock Mínimo <span className="text-red-500">*</span></label><input type="number" min="0" value={productForm.min_stock} onChange={(e) => setProductForm(prev => ({ ...prev, min_stock: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
-              </div>
-              <div className="border-t pt-4">
-                <h4 className="text-md font-medium text-gray-900 mb-3">📦 Unidades de Medida</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Unidad <span className="text-red-500">*</span></label><select value={productForm.unit_type} onChange={(e) => setProductForm(prev => ({ ...prev, unit_type: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>{unitTypes.map(type => (<option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>))}</select></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Peso por Unidad</label><input type="number" step="0.01" min="0" value={productForm.unit_weight} onChange={(e) => setProductForm(prev => ({ ...prev, unit_weight: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Peso</label><select value={productForm.weight_unit} onChange={(e) => setProductForm(prev => ({ ...prev, weight_unit: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={!productForm.unit_weight}><option value="">Seleccionar...</option>{weightUnits.map(unit => (<option key={unit} value={unit}>{unit.charAt(0).toUpperCase() + unit.slice(1)}</option>))}</select></div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre del producto <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={productForm.name}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Código único <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={productForm.code}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  {errors.code && <p className="text-red-500 text-xs mt-1">{errors.code}</p>}
                 </div>
               </div>
-              <div><label className="flex items-center space-x-2"><input type="checkbox" checked={productForm.active} onChange={(e) => setProductForm(prev => ({ ...prev, active: e.target.checked }))} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" /><span className="text-sm text-gray-700">Producto activo</span></label></div>
-              <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={() => { setShowEditModal(false); setSelectedProduct(null); resetForm(); }} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Actualizar</button>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descripción
+                </label>
+                <textarea
+                  value={productForm.description}
+                  onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Categoría
+                  </label>
+                  <input
+                    type="text"
+                    value={productForm.category}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    list="categories-list-edit"
+                  />
+                  <datalist id="categories-list-edit">
+                    {categories.map(category => (
+                      <option key={category} value={category} />
+                    ))}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Precio de venta <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500">Q</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productForm.price}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))}
+                      className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Precio por {productForm.unit_type || 'empaque'}</p>
+                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Stock mínimo <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={productForm.min_stock}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, min_stock: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">En {formatUnit(productForm.unit_type, 2)}</p>
+                  {errors.min_stock && <p className="text-red-500 text-xs mt-1">{errors.min_stock}</p>}
+                </div>
+              </div>
+
+              {/* Sección: Tipo de Empaque */}
+              <div className="border-t pt-4">
+                <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="mr-2">📦</span>
+                  Tipo de Empaque
+                </h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de empaque <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={productForm.unit_type}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, unit_type: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    {unitTypes.map(type => (
+                      <option key={type} value={type}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Sección: Peso (Opcional) */}
+              <div className="border-t pt-4">
+                <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="mr-2">⚖️</span>
+                  Información de Peso (Opcional)
+                </h4>
+                <div className="bg-yellow-50 p-3 rounded-md mb-3 border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    💡 Este dato es solo informativo
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Peso aproximado por empaque
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productForm.unit_weight}
+                      onChange={(e) => setProductForm(prev => ({ 
+                        ...prev, 
+                        unit_weight: e.target.value 
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Unidad de peso
+                    </label>
+                    <select
+                      value={productForm.weight_unit}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, weight_unit: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!productForm.unit_weight}
+                    >
+                      <option value="">Seleccionar...</option>
+                      {weightUnits.map(unit => (
+                        <option key={unit} value={unit}>
+                          {unit.charAt(0).toUpperCase() + unit.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview Dinámico */}
+              {productForm.unit_type && (
+                <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                  <h5 className="text-sm font-semibold text-gray-900 mb-2">
+                    📊 Vista previa
+                  </h5>
+                  <p className="text-sm text-gray-700">
+                    <strong>Si registras 10 en inventario:</strong>
+                    <br/>
+                    • Cantidad: 10 {formatUnit(productForm.unit_type, 10)}
+                    {productForm.unit_weight && productForm.weight_unit && (
+                      <>
+                        <br/>
+                        • Peso total: <strong className="text-blue-600">
+                          {(parseFloat(productForm.unit_weight) * 10).toLocaleString()} {productForm.weight_unit}
+                        </strong>
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={productForm.active}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, active: e.target.checked }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">Producto activo</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedProduct(null);
+                    resetForm();
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Actualizar Producto
+                </button>
               </div>
             </form>
           </div>
@@ -751,16 +1130,25 @@ export default function ProductsPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-medium text-gray-900">Stock por Bodega: {selectedProduct.name}</h3>
-                <p className="text-sm text-gray-600">Código: {selectedProduct.code} | Total: {selectedProduct.total_stock} {selectedProduct.unit_type}s
-                  {selectedProduct.total_weight && (<span className="ml-2 font-medium text-blue-600">({parseFloat(selectedProduct.total_weight).toFixed(2)} {selectedProduct.weight_unit})</span>)}
+                <p className="text-sm text-gray-600">
+                  Código: {selectedProduct.code} | Total: {selectedProduct.total_stock} {formatUnit(selectedProduct.unit_type, selectedProduct.total_stock)}
+                  {selectedProduct.total_weight && (
+                    <span className="ml-2 font-medium text-blue-600">
+                      ({parseFloat(selectedProduct.total_weight).toLocaleString()} {selectedProduct.weight_unit})
+                    </span>
+                  )}
                 </p>
               </div>
               <button onClick={() => setShowStockModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             {selectedProduct.inventory.length === 0 ? (
-              <div className="text-center py-8"><p className="text-gray-500">Este producto no tiene stock en ninguna bodega</p></div>
+              <div className="text-center py-8">
+                <p className="text-gray-500">Este producto no tiene stock en ninguna bodega</p>
+              </div>
             ) : (
               <div className="space-y-4">
                 {selectedProduct.inventory.map((item) => {
@@ -769,15 +1157,33 @@ export default function ProductsPage() {
                   return (
                     <div key={item.id} className="bg-gray-50 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
-                        <div><h5 className="font-medium text-gray-900">{item.warehouse.name}</h5><p className="text-sm text-gray-600">{item.warehouse.location}</p></div>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStockBadgeColor(item.quantity, selectedProduct.min_stock)}`}>{getStockStatusText(item.quantity, selectedProduct.min_stock)}</span>
+                        <div>
+                          <h5 className="font-medium text-gray-900">{item.warehouse.name}</h5>
+                          <p className="text-sm text-gray-600">{item.warehouse.location}</p>
+                        </div>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStockBadgeColor(item.quantity, selectedProduct.min_stock)}`}>
+                          {getStockStatusText(item.quantity, selectedProduct.min_stock)}
+                        </span>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center space-x-3">
-                          <div className="flex-1"><div className="bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.max(percentage, 5)}%` }}></div></div></div>
-                          <div className="text-right"><div className="text-lg font-bold text-gray-900">{item.quantity} {selectedProduct.unit_type}s</div><div className="text-xs text-gray-500">{percentage.toFixed(1)}%</div></div>
+                          <div className="flex-1">
+                            <div className="bg-gray-200 rounded-full h-2">
+                              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.max(percentage, 5)}%` }}></div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-gray-900">
+                              {item.quantity} {formatUnit(selectedProduct.unit_type, item.quantity)}
+                            </div>
+                            <div className="text-xs text-gray-500">{percentage.toFixed(1)}%</div>
+                          </div>
                         </div>
-                        {itemWeight && (<div className="text-sm text-blue-600 font-medium">Peso: {itemWeight} {selectedProduct.weight_unit}</div>)}
+                        {itemWeight && (
+                          <div className="text-sm text-blue-600 font-medium">
+                            Peso: {parseFloat(itemWeight).toLocaleString()} {selectedProduct.weight_unit}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -785,8 +1191,21 @@ export default function ProductsPage() {
               </div>
             )}
             <div className="flex justify-end mt-6 pt-4 border-t space-x-2">
-              <button onClick={() => { setShowStockModal(false); window.location.href = '/dashboard/inventory'; }} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Gestionar Inventario</button>
-              <button onClick={() => setShowStockModal(false)} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Cerrar</button>
+              <button 
+                onClick={() => { 
+                  setShowStockModal(false); 
+                  window.location.href = '/dashboard/inventory'; 
+                }} 
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Gestionar Inventario
+              </button>
+              <button 
+                onClick={() => setShowStockModal(false)} 
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+              >
+                Cerrar
+              </button>
             </div>
           </div>
         </div>

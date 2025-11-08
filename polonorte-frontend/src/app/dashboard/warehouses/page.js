@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import { useAuth } from '@/contexts/AuthContext';
 
-// 📍 UBICACIÓN: polonorte-frontend/src/app/dashboard/warehouses/page.js
-
 export default function WarehousesPage() {
   const { user } = useAuth();
   
@@ -32,7 +30,7 @@ export default function WarehousesPage() {
   });
   const [errors, setErrors] = useState({});
 
-  // 🔄 Cargar datos al montar el componente
+  // Cargar datos al montar el componente
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -122,7 +120,7 @@ export default function WarehousesPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // 📝 Crear nueva bodega
+  // Crear nueva bodega
   const handleCreate = async (e) => {
     e.preventDefault();
     
@@ -152,7 +150,7 @@ export default function WarehousesPage() {
     }
   };
 
-  // 📝 Actualizar bodega existente
+  // Actualizar bodega existente
   const handleUpdate = async (e) => {
     e.preventDefault();
     
@@ -185,7 +183,7 @@ export default function WarehousesPage() {
     }
   };
 
-  // 🗑️ Eliminar bodega
+  // Eliminar bodega
   const handleDelete = async (warehouse) => {
     const inventoryInfo = warehouseInventory[warehouse.id];
     
@@ -240,7 +238,7 @@ export default function WarehousesPage() {
     }
   };
 
-  // 📊 Ver inventario de bodega
+  // Ver inventario de bodega
   const handleViewInventory = async (warehouse) => {
     try {
       const response = await axios.get(`/inventory/warehouse/${warehouse.id}`);
@@ -255,7 +253,7 @@ export default function WarehousesPage() {
     }
   };
 
-  // 🚫 Verificar permisos
+  // Verificar permisos
   if (!user || !['Admin', 'Operador'].includes(user.role)) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -294,7 +292,7 @@ export default function WarehousesPage() {
 
   return (
     <div className="space-y-6">
-      {/* 📊 Header con estadísticas */}
+      {/*  Header con estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900">Total Bodegas</h3>
@@ -320,7 +318,7 @@ export default function WarehousesPage() {
         </div>
       </div>
 
-      {/* 🔧 Panel de control */}
+      {/*  Panel de control */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
@@ -344,7 +342,7 @@ export default function WarehousesPage() {
               </label>
             </div>
 
-            {/* ➕ Botón crear bodega */}
+            {/* Botón crear bodega */}
             <button
               onClick={() => {
                 resetForm();
@@ -360,7 +358,7 @@ export default function WarehousesPage() {
           </div>
         </div>
 
-        {/* 📋 Tabla de bodegas */}
+        {/* Tabla de bodegas */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -507,7 +505,7 @@ export default function WarehousesPage() {
         </div>
       </div>
 
-      {/* 🆕 Modal Crear Bodega */}
+      {/* Modal Crear Bodega */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -594,7 +592,7 @@ export default function WarehousesPage() {
         </div>
       )}
 
-      {/* ✏️ Modal Editar Bodega */}
+      {/* Modal Editar Bodega */}
       {showEditModal && selectedWarehouse && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -684,7 +682,7 @@ export default function WarehousesPage() {
         </div>
       )}
 
-      {/* 📊 Modal Ver Inventario de Bodega */}
+      {/* Modal Ver Inventario de Bodega */}
       {showInventoryModal && selectedWarehouse && selectedWarehouse.inventory && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-96 overflow-y-auto">

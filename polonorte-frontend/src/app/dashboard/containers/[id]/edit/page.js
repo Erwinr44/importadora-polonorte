@@ -24,7 +24,6 @@ export default function EditContainerPage({ params }) {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    // Verificar permisos (solo Admin y Operador pueden editar furgones)
     if (user && !['Admin', 'Operador'].includes(user.role)) {
       router.push('/dashboard/containers');
       return;
